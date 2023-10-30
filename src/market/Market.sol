@@ -5,15 +5,17 @@ import "./MarketStorage.sol";
 import "./utils/MarketUtils.sol";
 import "solmate/tokens/ERC20.sol";
 import "solmate/utils/SafeTransferLib.sol";
+import {Vault} from "../vault/Vault.sol";
 
 contract LimitlessMarket is MarketStorage, MarketUtils {
     using SafeCast for int;
     using Math for uint;
     using SafeTransferLib for ERC20;
 
-    constructor(address _collateralToken, address _oracle) {
+    constructor(address _collateralToken, address _oracle, address _vault) {
         collateralToken = _collateralToken;
         oracle = EthUsdOracle(_oracle);
+        vault = Vault(_vault);
     }
 
     modifier checkLeverage(uint256 size, uint256 collateral) {
@@ -37,8 +39,13 @@ contract LimitlessMarket is MarketStorage, MarketUtils {
 
         // Account for open interest
         uint256 price = oracle.getPrice().toUint256();
-        openInterestUSD += size * price;
-        openInterstInUnderlying += size;
+        if (positionType == PositionType.LONG) {
+            openInterestUSDLong += size * price;
+            openInterstInUnderlyingLong += size;
+        } else {
+            openInterestUSDShort += size * price;
+            openInterstInUnderlyingShort += size;
+        }
 
         position.size = size;
         position.collateral = collateral;
@@ -52,6 +59,8 @@ contract LimitlessMarket is MarketStorage, MarketUtils {
             address(this),
             collateral
         );
+
+        require(_ensureLiquidityReserves(), "Not enough liquidity");
     }
 
     /** @notice Function to increase size and/or collateral of position */
@@ -75,6 +84,8 @@ contract LimitlessMarket is MarketStorage, MarketUtils {
         position.size = newSize;
         position.collateral = newCollateral;
         userPosition[msg.sender] = position;
+
+        require(_ensureLiquidityReserves(), "Not enough liquidity");
     }
 
     // Close position
