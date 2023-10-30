@@ -9,11 +9,11 @@ pragma solidity ^0.8.20;
 import {EthUsdOracle} from "../../oracle/ethUsdOracle.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "../MarketStorage.sol";
 
-contract MarketUtils {
+contract MarketUtils is MarketStorage {
     using SafeCast for int;
     using Math for uint;
-    EthUsdOracle public oracle;
 
     function _calculateLeverage(
         uint256 size,
