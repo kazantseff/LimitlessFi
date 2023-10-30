@@ -11,8 +11,9 @@ contract LimitlessMarket is MarketStorage, MarketUtils {
     using Math for uint;
     using SafeTransferLib for ERC20;
 
-    constructor(address _collateralToken) {
+    constructor(address _collateralToken, address _oracle) {
         collateralToken = _collateralToken;
+        oracle = EthUsdOracle(_oracle);
     }
 
     modifier checkLeverage(uint256 size, uint256 collateral) {
