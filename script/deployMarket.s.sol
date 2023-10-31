@@ -10,7 +10,10 @@ import {DeployVault} from "./deployVault.s.sol";
 import {DeployToken} from "./mocks/deployTokenMock.s.sol";
 
 contract DeployMarket is Script {
-    function run() external returns (LimitlessMarket) {
+    function run()
+        external
+        returns (LimitlessMarket, Vault, MockERC20, EthUsdOracle)
+    {
         DeployToken tokenDeployer = new DeployToken();
         DeployOracle oracleDeployer = new DeployOracle();
         DeployVault vaultDeployer = new DeployVault();
@@ -27,6 +30,6 @@ contract DeployMarket is Script {
         );
         vm.stopBroadcast();
 
-        return market;
+        return (market, vault, token, oracle);
     }
 }
