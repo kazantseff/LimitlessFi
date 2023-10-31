@@ -16,16 +16,13 @@ contract Vault is ERC4626 {
     using SafeCast for uint;
     using SafeCast for int;
 
-    LimitlessMarket private immutable market;
+    LimitlessMarket private market;
     uint256 public maxUtilizationPercentage;
 
     // Underlying will be USDC
     constructor(
-        ERC20 _underlying,
-        address _market
-    ) ERC4626(_underlying, "LimitlessToken", "LMTLS") {
-        market = LimitlessMarket(_market);
-    }
+        ERC20 _underlying
+    ) ERC4626(_underlying, "LimitlessToken", "LMTLS") {}
 
     function totalAssets() public view override returns (uint256) {
         int256 balanceOfVault = ERC20(asset)
@@ -89,5 +86,9 @@ contract Vault is ERC4626 {
 
     function setUtilizationPercentage(uint256 utilizationRate) external {
         maxUtilizationPercentage = utilizationRate;
+    }
+
+    function setMarket(address _market) external {
+        market = LimitlessMarket(_market);
     }
 }

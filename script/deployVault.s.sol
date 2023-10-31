@@ -2,14 +2,14 @@ pragma solidity ^0.8.20;
 
 import {Script} from "forge-std/Script.sol";
 import {Vault} from "../src/vault/Vault.sol";
+import {MockERC20} from "../test/mocks/MockToken.sol";
 import "lib/solmate/src/tokens/ERC20.sol";
 
 contract DeployVault is Script {
-    address token = makeAddr("token");
-
-    function run() public {
+    function run(MockERC20 token) public returns (Vault) {
         vm.startBroadcast();
-        new Vault(ERC20(token));
+        Vault vault = new Vault(token);
         vm.stopBroadcast();
+        return vault;
     }
 }
