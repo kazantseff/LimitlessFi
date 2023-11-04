@@ -29,7 +29,6 @@ contract LimitlessMarket is MarketStorage, MarketUtils {
      * @param size Size of the position in index token
      * @param isLong Type of the position: Long or Short
      */
-    // #TODO: Account for decimals
     function openPosition(
         uint256 size,
         uint256 collateral,

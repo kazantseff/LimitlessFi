@@ -17,7 +17,11 @@ contract MarketUtils is MarketStorage {
     ) internal view returns (uint256) {
         int256 price = oracle.getPrice();
         // Get the price from oracle
-        uint256 leverage = price.toUint256().mulDiv(size, collateral);
+        uint256 leverage = price.toUint256().mulDiv(
+            size,
+            collateral *
+                1e10 /* collateral is usdc so we need to scale up decimals */
+        );
         return leverage;
     }
 
