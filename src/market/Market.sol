@@ -61,6 +61,8 @@ contract LimitlessMarket is MarketStorage, MarketUtils {
         );
 
         require(_ensureLiquidityReserves(), "Not enough liquidity");
+
+        emit PositionOpened(msg.sender, size, collateral, isLong);
     }
 
     /** @notice Function to increase size and/or collateral of position */
@@ -86,6 +88,8 @@ contract LimitlessMarket is MarketStorage, MarketUtils {
         userPosition[msg.sender] = position;
 
         require(_ensureLiquidityReserves(), "Not enough liquidity");
+
+        emit PositionIncreased(msg.sender, newSize, newCollateral);
     }
 
     // Close position

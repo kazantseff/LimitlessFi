@@ -16,6 +16,9 @@ contract Vault is ERC4626 {
     using SafeCast for uint;
     using SafeCast for int;
 
+    event UtilizationPercentageSet(uint256 indexed utilizationPercentage);
+    event MarketSet(address indexed market);
+
     LimitlessMarket private market;
     uint256 public maxUtilizationPercentage;
     uint256 public totalLiquidityDeposited;
@@ -58,9 +61,13 @@ contract Vault is ERC4626 {
 
     function setUtilizationPercentage(uint256 utilizationRate) external {
         maxUtilizationPercentage = utilizationRate;
+
+        emit UtilizationPercentageSet(utilizationRate);
     }
 
     function setMarket(address _market) external {
         market = LimitlessMarket(_market);
+
+        emit MarketSet(_market);
     }
 }

@@ -8,6 +8,19 @@ error PositionNotOpen();
 error PositionDecreased();
 
 contract MarketStorage {
+    event PositionOpened(
+        address indexed user,
+        uint256 indexed size,
+        uint256 indexed collateral,
+        bool isLong
+    );
+
+    event PositionIncreased(
+        address indexed user,
+        uint256 indexed newSize,
+        uint256 indexed newCollateral
+    );
+
     struct Position {
         uint256 collateral;
         uint256 size;
