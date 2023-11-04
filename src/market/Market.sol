@@ -49,6 +49,7 @@ contract LimitlessMarket is MarketStorage, MarketUtils {
 
         position.size = size;
         position.collateral = collateral;
+        position.entryPrice = price;
         position.isLong = isLong;
 
         userPosition[msg.sender] = position;
@@ -66,6 +67,7 @@ contract LimitlessMarket is MarketStorage, MarketUtils {
     }
 
     /** @notice Function to increase size and/or collateral of position */
+    // #TODO: Figure a way to account for open interest when increasing position, as well as acounting for average price of the position
     function increasePosition(
         uint256 newSize,
         uint256 newCollateral
@@ -87,6 +89,7 @@ contract LimitlessMarket is MarketStorage, MarketUtils {
         position.collateral = newCollateral;
         userPosition[msg.sender] = position;
 
+        // @audit This essentially is not doing its job, as i am not increasing the open intereset
         require(_ensureLiquidityReserves(), "Not enough liquidity");
 
         emit PositionIncreased(msg.sender, newSize, newCollateral);

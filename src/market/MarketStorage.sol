@@ -24,6 +24,7 @@ contract MarketStorage {
     struct Position {
         uint256 collateral;
         uint256 size;
+        uint256 entryPrice;
         bool isLong;
     }
 
