@@ -8,15 +8,10 @@ error PositionNotOpen();
 error PositionDecreased();
 
 contract MarketStorage {
-    enum PositionType {
-        LONG,
-        SHORT
-    }
-
     struct Position {
         uint256 collateral;
         uint256 size;
-        PositionType positionType;
+        bool isLong;
     }
 
     mapping(address => Position position) public userPosition;

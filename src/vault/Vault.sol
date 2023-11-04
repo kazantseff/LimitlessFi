@@ -18,6 +18,7 @@ contract Vault is ERC4626 {
 
     LimitlessMarket private market;
     uint256 public maxUtilizationPercentage;
+    uint256 public totalLiquidityDeposited;
 
     // Underlying will be USDC
     constructor(
@@ -25,9 +26,7 @@ contract Vault is ERC4626 {
     ) ERC4626(_underlying, "LimitlessToken", "LMTLS") {}
 
     function totalAssets() public view override returns (uint256) {
-        int256 balanceOfVault = ERC20(asset)
-            .balanceOf(address(this))
-            .toInt256();
+        int256 balanceOfVault = totalLiquidityDeposited.toInt256();
         // Pnl can be negative, but totalAssets should be at least 0
         int256 _totalAssets = balanceOfVault - market._calculateProtocolPnl();
         if (_totalAssets < 0) revert ProtocolInsolvent();
@@ -39,17 +38,8 @@ contract Vault is ERC4626 {
         uint256 assets,
         address receiver
     ) public override returns (uint256 shares) {
-        // Check for rounding error since we round down in previewDeposit.
-        require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
-
-        // Need to transfer before minting or ERC777s could reenter.
-        asset.safeTransferFrom(msg.sender, address(this), assets);
-
-        _mint(receiver, shares);
-
-        emit Deposit(msg.sender, receiver, assets, shares);
-
-        afterDeposit(assets, shares);
+        totalLiquidityDeposited += assets;
+        shares = super.deposit(assets, receiver);
     }
 
     function redeem(
@@ -57,31 +47,13 @@ contract Vault is ERC4626 {
         address receiver,
         address owner
     ) public override returns (uint256 assets) {
-        if (msg.sender != owner) {
-            uint256 allowed = allowance[owner][msg.sender]; // Saves gas for limited approvals.
-
-            if (allowed != type(uint256).max)
-                allowance[owner][msg.sender] = allowed - shares;
-        }
-
-        // Check for rounding error since we round down in previewRedeem.
-        require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
-        // Calculate totalOpenInterest
-        uint256 totalOpenInterest = market.openInterestUSDShort() +
-            market.openInterestUSDLong();
-        // Liquidity withdrawn cannot be greater than liquidity that is used for positions
+        assets = super.redeem(shares, receiver, owner);
+        totalLiquidityDeposited -= assets;
+        // This check enusures that after withdrawal (totalOpenInterest < (depositedLiquidity * utilizationPercentage))
         require(
-            assets < totalOpenInterest,
-            "Cannot withdraw liquidity that is reserved for positions"
+            market._ensureLiquidityReserves(),
+            "Cannot withdraw liquidity reserved for positions"
         );
-
-        beforeWithdraw(assets, shares);
-
-        _burn(owner, shares);
-
-        emit Withdraw(msg.sender, receiver, owner, assets, shares);
-
-        asset.safeTransfer(receiver, assets);
     }
 
     function setUtilizationPercentage(uint256 utilizationRate) external {

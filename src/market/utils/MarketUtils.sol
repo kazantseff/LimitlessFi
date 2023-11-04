@@ -36,17 +36,16 @@ contract MarketUtils is MarketStorage {
         return pnlLongs + pnlShorts;
     }
 
+    // Liquidity reserves are calculated (depositedLiquidity * maxUtilizationPercentage)
     function _calculateLiquidityReserves() internal view returns (uint256) {
-        // Asset of the vault
-        ERC20 asset = vault.asset();
-        uint256 depositedLiquidity = asset.balanceOf(address(vault));
+        uint256 depositedLiquidity = vault.totalLiquidityDeposited();
         uint256 reserves = depositedLiquidity *
             vault.maxUtilizationPercentage();
         return reserves;
     }
 
     // shortOpenInterstUSD + (longOpenInterestTokens * price) < (depositedLiquidity * utilizationPercentage)
-    function _ensureLiquidityReserves() internal view returns (bool) {
+    function _ensureLiquidityReserves() public view returns (bool) {
         uint256 price = oracle.getPrice().toUint256();
         if (
             openInterestUSDShort + (openInterstInUnderlyingLong * price) <

@@ -27,19 +27,20 @@ contract LimitlessMarket is MarketStorage, MarketUtils {
     /** @notice Function to open position
      * @param collateral amount of collateral in USDC
      * @param size Size of the position in index token
-     * @param positionType Type of the position: Long or Short
+     * @param isLong Type of the position: Long or Short
      */
+    // #TODO: Account for decimals
     function openPosition(
         uint256 size,
         uint256 collateral,
-        PositionType positionType
+        bool isLong
     ) external checkLeverage(size, collateral) {
         Position memory position = userPosition[msg.sender];
         require(position.size == 0, "Position is already open");
 
         // Account for open interest
         uint256 price = oracle.getPrice().toUint256();
-        if (positionType == PositionType.LONG) {
+        if (isLong) {
             openInterestUSDLong += size * price;
             openInterstInUnderlyingLong += size;
         } else {
@@ -49,7 +50,7 @@ contract LimitlessMarket is MarketStorage, MarketUtils {
 
         position.size = size;
         position.collateral = collateral;
-        position.positionType = positionType;
+        position.isLong = isLong;
 
         userPosition[msg.sender] = position;
 
