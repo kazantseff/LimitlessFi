@@ -34,6 +34,7 @@ contract LimitlessMarket is MarketStorage, MarketUtils {
         uint256 collateral,
         bool isLong
     ) external checkLeverage(size, collateral) {
+        require(size >= minimumPositionSize, "Position size below minimum");
         Position memory position = userPosition[msg.sender];
         require(position.size == 0, "Position is already open");
 

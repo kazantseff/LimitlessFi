@@ -35,6 +35,7 @@ contract MarketStorage {
     address collateralToken;
     // Max leverage for a position
     uint256 public maxLeverage;
+    uint256 public minimumPositionSize;
     // Measured in USD value, incremented by the "size" of the position
     uint256 public openInterestUSDLong;
     // Measured in index tokens, incremented by the "size in index tokens"

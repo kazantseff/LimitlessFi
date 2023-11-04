@@ -11,6 +11,14 @@ contract MarketUtils is MarketStorage {
     using SafeCast for uint;
     using Math for uint;
 
+    function setMinimumPositionSize(uint256 size) external {
+        minimumPositionSize = size;
+    }
+
+    function setMaxLeverage(uint256 _maxLeverage) external {
+        maxLeverage = _maxLeverage;
+    }
+
     function _calculateLeverage(
         uint256 size,
         uint256 collateral
