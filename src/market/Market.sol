@@ -5,14 +5,19 @@ import "./MarketStorage.sol";
 import "./utils/MarketUtils.sol";
 import "solmate/tokens/ERC20.sol";
 import "solmate/utils/SafeTransferLib.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import {Vault} from "../vault/Vault.sol";
 
-contract LimitlessMarket is MarketStorage, MarketUtils {
+contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
     using SafeCast for int;
     using Math for uint;
     using SafeTransferLib for ERC20;
 
-    constructor(address _collateralToken, address _oracle, address _vault) {
+    constructor(
+        address _collateralToken,
+        address _oracle,
+        address _vault
+    ) Ownable(msg.sender) {
         collateralToken = _collateralToken;
         oracle = EthUsdOracle(_oracle);
         vault = Vault(_vault);
@@ -99,4 +104,12 @@ contract LimitlessMarket is MarketStorage, MarketUtils {
     // Close position
 
     // Liquidate
+
+    function setMinimumPositionSize(uint256 size) external onlyOwner {
+        minimumPositionSize = size;
+    }
+
+    function setMaxLeverage(uint256 _maxLeverage) external onlyOwner {
+        maxLeverage = _maxLeverage;
+    }
 }

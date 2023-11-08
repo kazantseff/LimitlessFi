@@ -5,13 +5,12 @@ import {ERC4626} from "lib/solmate/src/mixins/ERC4626.sol";
 import "solmate/tokens/ERC20.sol";
 import "solmate/utils/SafeTransferLib.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import {LimitlessMarket} from "../market/Market.sol";
 
 error ProtocolInsolvent();
 
-// #TODO: Need to implement access control
-
-contract Vault is ERC4626 {
+contract Vault is ERC4626, Ownable {
     using SafeTransferLib for ERC20;
     using SafeCast for uint;
     using SafeCast for int;
@@ -26,7 +25,7 @@ contract Vault is ERC4626 {
     // Underlying will be USDC
     constructor(
         ERC20 _underlying
-    ) ERC4626(_underlying, "LimitlessToken", "LMTLS") {}
+    ) ERC4626(_underlying, "LimitlessToken", "LMTLS") Ownable(msg.sender) {}
 
     function totalAssets() public view override returns (uint256) {
         int256 balanceOfVault = totalLiquidityDeposited.toInt256();
@@ -59,13 +58,15 @@ contract Vault is ERC4626 {
         );
     }
 
-    function setUtilizationPercentage(uint256 utilizationRate) external {
+    function setUtilizationPercentage(
+        uint256 utilizationRate
+    ) external onlyOwner {
         maxUtilizationPercentage = utilizationRate;
 
         emit UtilizationPercentageSet(utilizationRate);
     }
 
-    function setMarket(address _market) external {
+    function setMarket(address _market) external onlyOwner {
         market = LimitlessMarket(_market);
 
         emit MarketSet(_market);
