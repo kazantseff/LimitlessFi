@@ -25,6 +25,14 @@ contract MarketUtils is MarketStorage {
         return leverage;
     }
 
+    function _checkLeverage(
+        uint256 size,
+        uint256 collateral
+    ) internal view returns (bool) {
+        uint256 leverage = _calculateLeverage(size, collateral);
+        return leverage < maxLeverage;
+    }
+
     /** @notice Calculates total Pnl of the protocol
      * @return Can return negative value, which means liquidity providers are losing money
      */

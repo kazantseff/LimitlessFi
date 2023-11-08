@@ -6,6 +6,7 @@ import {Vault} from "../vault/Vault.sol";
 
 error PositionNotOpen();
 error PositionDecreased();
+error CannotClosePosition();
 
 contract MarketStorage {
     event PositionOpened(

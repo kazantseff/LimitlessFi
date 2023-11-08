@@ -23,12 +23,6 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         vault = Vault(_vault);
     }
 
-    modifier checkLeverage(uint256 size, uint256 collateral) {
-        uint256 leverage = _calculateLeverage(size, collateral);
-        require(leverage < maxLeverage);
-        _;
-    }
-
     /** @notice Function to open position
      * @param collateral amount of collateral in USDC
      * @param size Size of the position in index token
@@ -38,8 +32,12 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         uint256 size,
         uint256 collateral,
         bool isLong
-    ) external checkLeverage(size, collateral) {
+    ) external {
         require(size >= minimumPositionSize, "Position size below minimum");
+        require(
+            _checkLeverage(size, collateral),
+            "Position exceeds maxLeverage"
+        );
         Position memory position = userPosition[msg.sender];
         require(position.size == 0, "Position is already open");
 
@@ -72,33 +70,54 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         emit PositionOpened(msg.sender, size, collateral, isLong);
     }
 
-    /** @notice Function to increase size and/or collateral of position */
-    // #TODO: Figure a way to account for open interest when increasing position, as well as acounting for average price of the position
-    function increasePosition(
-        uint256 newSize,
-        uint256 newCollateral
-    ) external checkLeverage(newSize, newCollateral) {
+    /** @notice Function to increase size and/or collateral of position
+     * @param addSize if 0, means user only increases collateral
+     * @param addCollateral if 0, means user only increases size
+     */
+    function increasePosition(uint256 addSize, uint256 addCollateral) external {
         Position memory position = userPosition[msg.sender];
         if (position.size == 0 || position.collateral == 0)
             revert PositionNotOpen();
-        if (newSize < position.size || newCollateral < position.collateral)
-            revert PositionDecreased();
+        // Do not allow closing of the position
+        if (addSize == 0 && addCollateral == 0) revert CannotClosePosition();
 
-        // Transfer collateral
-        ERC20(collateralToken).safeTransferFrom(
-            msg.sender,
-            address(this),
-            newCollateral - position.collateral
-        );
+        uint256 price = oracle.getPrice().toUint256();
+        // First add collateral, so later if user also wants to increase the size
+        // Checks will be made on new amount of collateral
+        if (addCollateral > 0) {
+            ERC20(collateralToken).safeTransferFrom(
+                msg.sender,
+                address(this),
+                addCollateral
+            );
+            position.collateral += addCollateral;
+            // There is no need to check leverage here, as by increasing collateral, user can only decrease leverage
+        }
 
-        position.size = newSize;
-        position.collateral = newCollateral;
+        if (addSize > 0) {
+            position.size += addSize;
+            require(
+                _checkLeverage(position.size, position.collateral),
+                "Position exceeds maxLeverage"
+            );
+
+            // Increase the open interest
+            if (position.isLong) {
+                openInterstInUnderlyingLong += addSize;
+                openInterestUSDLong += addSize * price;
+            } else {
+                openInterstInUnderlyingShort += addSize;
+                openInterestUSDShort += addSize * price;
+            }
+        }
+
+        // #TODO: Calcualte average entry price
+
         userPosition[msg.sender] = position;
 
-        // @audit This essentially is not doing its job, as i am not increasing the open intereset
         require(_ensureLiquidityReserves(), "Not enough liquidity");
 
-        emit PositionIncreased(msg.sender, newSize, newCollateral);
+        emit PositionIncreased(msg.sender, addSize, addCollateral);
     }
 
     // Close position
