@@ -48,6 +48,23 @@ contract MarketUtils is MarketStorage {
         return pnlLongs + pnlShorts;
     }
 
+    function _calculateUserPnl(address _user) internal view returns (int256) {
+        // It depends if the position is long or short
+        Position memory position = userPosition[_user];
+        uint256 price = oracle.getPrice().toUint256();
+        int256 currentValue = price * position.size;
+        int256 entryValue = position.averagePrice * position.size;
+        if (position.isLong) {
+            // For long
+            // CurrentValue - EntryValue
+            return currentValue - entryValue;
+        } else {
+            // For short
+            // EntryValue - CurrentValue
+            return entryValue - currentValue;
+        }
+    }
+
     // Liquidity reserves are calculated (depositedLiquidity * maxUtilizationPercentage)
     function _calculateLiquidityReserves() internal view returns (uint256) {
         uint256 depositedLiquidity = vault.totalLiquidityDeposited();
