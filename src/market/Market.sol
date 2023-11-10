@@ -5,12 +5,13 @@ import "./MarketStorage.sol";
 import "./utils/MarketUtils.sol";
 import "solmate/tokens/ERC20.sol";
 import "solmate/utils/SafeTransferLib.sol";
+import "../lib/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {Vault} from "../vault/Vault.sol";
 
 contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
     using SafeCast for int;
-    using Math for uint;
+    using SafeMath for uint;
     using SafeTransferLib for ERC20;
 
     constructor(
@@ -53,7 +54,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
 
         position.size = size;
         position.collateral = collateral;
-        position.entryPrice = price;
+        position.averagePrice = price;
         position.isLong = isLong;
 
         userPosition[msg.sender] = position;
@@ -94,7 +95,10 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
             // There is no need to check leverage here, as by increasing collateral, user can only decrease leverage
         }
 
+        // We only need to re-calculate the average entry price, if a user bought more
+        // If he added size to the position
         if (addSize > 0) {
+            uint256 oldSize = position.size;
             position.size += addSize;
             require(
                 _checkLeverage(position.size, position.collateral),
@@ -109,9 +113,17 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
                 openInterstInUnderlyingShort += addSize;
                 openInterestUSDShort += addSize * price;
             }
-        }
 
-        // #TODO: Calcualte average entry price
+            // Formula to calculate average price
+            // (totalCostEntry1 + totalCostEntry2) / (totalQuantityEntry1 + totalQuantityEntry2)
+            // totalCost = price * amount
+            uint256 totalCostEntry1 = position.averagePrice * oldSize;
+            uint256 totalCostEntry2 = price * addSize;
+            uint256 averagePrice = (totalCostEntry1 + totalCostEntry2).div(
+                oldSize + addSize
+            );
+            position.entryPrice = averagePrice;
+        }
 
         userPosition[msg.sender] = position;
 
@@ -119,10 +131,6 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
 
         emit PositionIncreased(msg.sender, addSize, addCollateral);
     }
-
-    // Close position
-
-    // Liquidate
 
     function setMinimumPositionSize(uint256 size) external onlyOwner {
         minimumPositionSize = size;
