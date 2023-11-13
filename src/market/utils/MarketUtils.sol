@@ -77,6 +77,7 @@ contract MarketUtils is MarketStorage {
         uint256 _removeSize,
         bool isLiquidating
     ) internal returns (Position memory) {
+        uint256 price = oracle.getPrice.toUint256();
         int256 pnl = _calculateUserPnl(_user);
         int256 realizedPnl = pnl.mulDiv(_removeSize, _position.size);
         // If realizedPnl is negative, deduct it from the collateral
@@ -88,6 +89,16 @@ contract MarketUtils is MarketStorage {
             ERC20(collateralToken).safeTransfer(msg.sender, realizedPnl);
         }
         _position.size -= _removeSize;
+
+        // Decrease open interest
+        if (_position.isLong) {
+            openInterstInUnderlyingLong -= _removeSize;
+            openInterestUSDLong += _removeSize * price;
+        } else {
+            openInterstInUnderlyingShort -= _removeSize;
+            openInterestUSDShort -= _removeSize * price;
+        }
+
         // If size is decreased to 0, tclose the position
         if (_position.size == 0) {
             // Deduct the liquidation fee if needed
@@ -100,6 +111,7 @@ contract MarketUtils is MarketStorage {
             );
             _position.collateral = 0;
         }
+
         return _position;
     }
 
