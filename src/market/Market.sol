@@ -178,6 +178,8 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         position = _removeSize(position, user, removeSize, true);
         ERC20(collateralToken).safeTransfer(msg.sender, liquidationFee);
         userPosition[user] = position;
+
+        emit PositionLiquidated(user);
     }
 
     function setMinimumPositionSize(uint256 size) external onlyOwner {
