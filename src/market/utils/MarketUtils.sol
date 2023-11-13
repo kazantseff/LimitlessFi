@@ -65,6 +65,44 @@ contract MarketUtils is MarketStorage {
         }
     }
 
+    /** @notice Function to remove size of the position and realize the pnl
+     * @param _position The position to operate on
+     * @param _user User whose position is being decreased
+     * @param _removeSize the amount of size to remove
+     * @param isLiquidation flag to see if this is the liquidation
+     */
+    function _removeSize(
+        Position memory _position,
+        address _user,
+        uint256 _removeSize,
+        bool isLiquidating
+    ) internal returns (Position memory) {
+        int256 pnl = _calculateUserPnl(_user);
+        int256 realizedPnl = pnl.mulDiv(_removeSize, _position.size);
+        // If realizedPnl is negative, deduct it from the collateral
+        if (realizedPnl < 0) {
+            uint256 absolutePnl = realizedPnl.abs();
+            // No need to check leverage as the amount of collateral decreased is proportional to amount of size decreased
+            _position.collateral -= absoultePnl;
+        } else {
+            ERC20(collateralToken).safeTransfer(msg.sender, realizedPnl);
+        }
+        _position.size -= _removeSize;
+        // If size is decreased to 0, tclose the position
+        if (_position.size == 0) {
+            // Deduct the liquidation fee if needed
+            if (isLiquidating) {
+                _position.collateral -= liquidationFee;
+            }
+            ERC20(collateralToken).safeTransfer(
+                msg.sender,
+                _position.collateral
+            );
+            _position.collateral = 0;
+        }
+        return _position;
+    }
+
     // Liquidity reserves are calculated (depositedLiquidity * maxUtilizationPercentage)
     function _calculateLiquidityReserves() internal view returns (uint256) {
         uint256 depositedLiquidity = vault.totalLiquidityDeposited();

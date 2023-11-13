@@ -145,26 +145,9 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         Position memory position = userPosition[msg.sender];
         if (position.size == 0 || position.collateral == 0)
             revert PositionNotOpen();
-        // Removing size requires checking the pnl
         if (removeSize > 0) {
-            int256 pnl = _calculateUserPnl(msg.sender);
-            int256 realizedPnl = pnl.mulDiv(removeSize, position.size);
-            // If realizedPnl is negative, deduct it from the collateral
-            if (realizedPnl < 0) {
-                uint256 absolutePnl = realizedPnl.abs();
-                position.collateral -= absoultePnl;
-                // No need to check leverage as the amount of collateral decreased is proportional to amount of size decreased
-            } else {
-                ERC20(collateralToken).safeTransfer(msg.sender, realizedPnl);
-            }
-            position.size -= removeSize;
-            // If size is decreased to 0, the position is closed
-            if (position.size == 0) {
-                ERC20(collateralToken).safeTransfer(
-                    msg.sender,
-                    position.collateral
-                );
-            }
+            // Remove size and realize pnl
+            position = _removeSize(position, msg.sender, removeSize, false);
         }
 
         if (removeCollateral > 0) {
@@ -181,7 +164,21 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         emit PositionDecreased(msg.sender, removeSize, removeCollateral);
     }
 
-    function liquidate(address user) external {}
+    /** @notice Function to liquidate a user, i.e reduce the size of the position to 0
+     * @param user User to liquidity
+     */
+    function liquidate(address user) external {
+        Position memory position = userPosition[user];
+        require(
+            !_checkLeverage(position.size, position.collateral),
+            "Position is not liquiditable."
+        );
+        uint256 removeSize = position.size;
+        // Remove the size, realize the pnl, transfer the collateral
+        position = _removeSize(position, user, removeSize, true);
+        ERC20(collateralToken).safeTransfer(msg.sender, liquidationFee);
+        userPosition[user] = position;
+    }
 
     function setMinimumPositionSize(uint256 size) external onlyOwner {
         minimumPositionSize = size;
