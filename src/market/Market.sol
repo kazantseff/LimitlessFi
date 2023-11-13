@@ -194,3 +194,5 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         liquidationFee = _fee;
     }
 }
+
+// #TODO: Implement liquidation fee correctly, + implement position and borrow fee
