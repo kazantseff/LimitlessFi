@@ -18,9 +18,11 @@ contract MarketStorage {
 
     event PositionIncreased(
         address indexed user,
-        uint256 indexed newSize,
-        uint256 indexed newCollateral
+        uint256 indexed addSize,
+        uint256 indexed addCollateral
     );
+
+    event PositionDecreased(address indexed user, uint256 indexed removeSize, uint256 indexed removeCollateral);
 
     struct Position {
         uint256 collateral;

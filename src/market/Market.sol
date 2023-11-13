@@ -6,12 +6,14 @@ import "./utils/MarketUtils.sol";
 import "solmate/tokens/ERC20.sol";
 import "solmate/utils/SafeTransferLib.sol";
 import "../lib/SafeMath.sol";
+import "@openzeppelin/contracts/utils/math/SignedMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {Vault} from "../vault/Vault.sol";
 
 contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
     using SafeCast for int;
     using SafeMath for uint;
+    using SignedMath for int;
     using SafeTransferLib for ERC20;
 
     constructor(
@@ -130,6 +132,53 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         require(_ensureLiquidityReserves(), "Not enough liquidity");
 
         emit PositionIncreased(msg.sender, addSize, addCollateral);
+    }
+
+    /** @notice Function to decrease size and/or collateral of the position
+     * @param removeSize if 0 => user only removes collateral
+     * @param removeCollateral if 0 => user only removes size
+     */
+    function decreasePosition(
+        uint256 removeSize,
+        uint256 removeCollateral
+    ) external {
+        Position memory position = userPosition[msg.sender];
+        if (position.size == 0 || position.collateral == 0)
+            revert PositionNotOpen();
+        // Removing size requires checking the pnl
+        if (removeSize > 0) {
+            int256 pnl = _calculateUserPnl(msg.sender);
+            int256 realizedPnl = pnl.mulDiv(removeSize, position.size);
+            // If realizedPnl is negative, deduct it from the collateral
+            if (realizedPnl < 0) {
+                uint256 absolutePnl = realizedPnl.abs();
+                position.collateral -= absoultePnl;
+                // No need to check leverage as the amount of collateral decreased is proportional to amount of size decreased
+            } else {
+                ERC20(collateralToken).safeTransfer(msg.sender, realizedPnl);
+            }
+            position.size -= removeSize;
+            // If size is decreased to 0, the position is closed
+            if (position.size == 0) {
+                ERC20(collateralToken).safeTransfer(
+                    msg.sender,
+                    position.collateral
+                );
+            }
+        }
+
+        if (removeCollateral > 0) {
+            position.collateral -= removeCollateral;
+            ERC2O(collateralToken).safeTransfer(msg.sender, removeCollateral);
+            require(
+                _checkLeverage(position.size, position.collateral),
+                "Position exceeds maxLeverage"
+            );
+        }
+
+        userPosition[msg.sender] = position;
+
+        emit PositionDecreased(msg.sender, removeSize, removeCollateral);
     }
 
     function setMinimumPositionSize(uint256 size) external onlyOwner {
