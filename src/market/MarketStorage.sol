@@ -36,6 +36,7 @@ contract MarketStorage {
     Vault public vault;
     EthUsdOracle public oracle;
     address collateralToken;
+    uint256 public liquidationFee;
     // Max leverage for a position
     uint256 public maxLeverage;
     uint256 public minimumPositionSize;

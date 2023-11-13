@@ -181,11 +181,17 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         emit PositionDecreased(msg.sender, removeSize, removeCollateral);
     }
 
+    function liquidate(address user) external {}
+
     function setMinimumPositionSize(uint256 size) external onlyOwner {
         minimumPositionSize = size;
     }
 
     function setMaxLeverage(uint256 _maxLeverage) external onlyOwner {
         maxLeverage = _maxLeverage;
+    }
+
+    function setLiquidationFee(uint256 _fee) external onlyOwner {
+        liquidationFee = _fee;
     }
 }
