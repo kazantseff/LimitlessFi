@@ -5,7 +5,7 @@ import {EthUsdOracle} from "../oracle/ethUsdOracle.sol";
 import {Vault} from "../vault/Vault.sol";
 
 error PositionNotOpen();
-error PositionDecreased();
+error PositionCannotBeDecreased();
 error CannotClosePosition();
 
 contract MarketStorage {
@@ -28,7 +28,7 @@ contract MarketStorage {
         uint256 indexed removeCollateral
     );
 
-    event PositionLiquidated(address indexed user);s
+    event PositionLiquidated(address indexed user);
 
     struct Position {
         uint256 collateral;
@@ -42,16 +42,16 @@ contract MarketStorage {
     Vault public vault;
     EthUsdOracle public oracle;
     address collateralToken;
-    uint256 public constant DENOMINATOR = 10_000;
+    uint256 internal constant MAXIMUM_BPS = 10_000;
     // Denominated in BIPS
-    uint256 public liquidationFeePercentage; 
+    uint256 internal liquidationFeePercentage;
     // Max leverage for a position
-    uint256 public maxLeverage;
-    uint256 public minimumPositionSize;
+    uint256 internal maxLeverage;
+    uint256 internal minimumPositionSize;
     // Measured in USD value, incremented by the "size" of the position
-    uint256 public openInterestUSDLong;
+    uint256 internal openInterestUSDLong;
     // Measured in index tokens, incremented by the "size in index tokens"
-    uint256 public openInterstInUnderlyingLong;
-    uint256 public openInterestUSDShort;
-    uint256 public openInterstInUnderlyingShort;
+    uint256 internal openInterstInUnderlyingLong;
+    uint256 internal openInterestUSDShort;
+    uint256 internal openInterstInUnderlyingShort;
 }

@@ -124,7 +124,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
             uint256 averagePrice = (totalCostEntry1 + totalCostEntry2).div(
                 oldSize + addSize
             );
-            position.entryPrice = averagePrice;
+            position.averagePrice = averagePrice;
         }
 
         userPosition[msg.sender] = position;
@@ -147,12 +147,17 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
             revert PositionNotOpen();
         if (removeSize > 0) {
             // Remove size and realize pnl
-            (position, /* fee */ ) = _removeSize(position, msg.sender, removeSize, false);
+            (position /* fee */, ) = _removeSize(
+                position,
+                msg.sender,
+                removeSize,
+                false
+            );
         }
 
         if (removeCollateral > 0) {
             position.collateral -= removeCollateral;
-            ERC2O(collateralToken).safeTransfer(msg.sender, removeCollateral);
+            ERC20(collateralToken).safeTransfer(msg.sender, removeCollateral);
             require(
                 _checkLeverage(position.size, position.collateral),
                 "Position exceeds maxLeverage"
@@ -169,13 +174,19 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
      */
     function liquidate(address user) external {
         Position memory position = userPosition[user];
+        uint256 liquidationFee;
         require(
             !_checkLeverage(position.size, position.collateral),
             "Position is not liquiditable."
         );
         uint256 removeSize = position.size;
         // Remove the size, realize the pnl, transfer the collateral
-        (position, liquidationFee) = _removeSize(position, user, removeSize, true);
+        (position, liquidationFee) = _removeSize(
+            position,
+            user,
+            removeSize,
+            true
+        );
         ERC20(collateralToken).safeTransfer(msg.sender, liquidationFee);
         userPosition[user] = position;
 
@@ -194,9 +205,9 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
     function setLiquidationFeePercentage(
         uint256 _feePercentage
     ) external onlyOwner {
-        require(_feePercentage < 100, "Fee is too high")
+        require(_feePercentage < 100, "Fee is too high");
         liquidationFeePercentage = _feePercentage;
     }
 }
 
-// #TODO: Implement liquidation fee correctly, + implement position and borrow fee
+// #TODO:  implement position and borrow fee

@@ -1,15 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "solmate/utils/SafeTransferLib.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "../MarketStorage.sol";
+import "@openzeppelin/contracts/utils/math/SignedMath.sol";
+import "../../lib/SafeMath.sol";
 import "solmate/tokens/ERC20.sol";
+import "../MarketStorage.sol";
 
 contract MarketUtils is MarketStorage {
     using SafeCast for int;
     using SafeCast for uint;
     using Math for uint;
+    using SafeMath for uint;
+    using SignedMath for int;
+    using SafeTransferLib for ERC20;
 
     function _calculateLeverage(
         uint256 size,
@@ -51,9 +57,10 @@ contract MarketUtils is MarketStorage {
     function _calculateUserPnl(address _user) internal view returns (int256) {
         // It depends if the position is long or short
         Position memory position = userPosition[_user];
-        uint256 price = oracle.getPrice().toUint256();
-        int256 currentValue = price * position.size;
-        int256 entryValue = position.averagePrice * position.size;
+        int256 price = oracle.getPrice();
+        int256 currentValue = price * position.size.toInt256();
+        int256 entryValue = position.averagePrice.toInt256() *
+            position.size.toInt256();
         if (position.isLong) {
             // For long
             // CurrentValue - EntryValue
@@ -68,36 +75,42 @@ contract MarketUtils is MarketStorage {
     /** @notice Function to remove size of the position and realize the pnl
      * @param _position The position to operate on
      * @param _user User whose position is being decreased
-     * @param _removeSize the amount of size to remove
-     * @param isLiquidation flag to see if this is the liquidation
+     * @param removeSize the amount of size to remove
+     * @param isLiquidating flag to see if this is the liquidation
      */
     function _removeSize(
         Position memory _position,
         address _user,
-        uint256 _removeSize,
+        uint256 removeSize,
         bool isLiquidating
     ) internal returns (Position memory, uint256) {
         uint256 fee;
-        uint256 price = oracle.getPrice.toUint256();
+        uint256 price = oracle.getPrice().toUint256();
         int256 pnl = _calculateUserPnl(_user);
-        int256 realizedPnl = pnl.mulDiv(_removeSize, _position.size);
+        // #TODO: Check precision loss
+        int256 realizedPnl = (pnl * removeSize.toInt256()) /
+            _position.size.toInt256();
         // If realizedPnl is negative, deduct it from the collateral
         if (realizedPnl < 0) {
             uint256 absolutePnl = realizedPnl.abs();
             // No need to check leverage as the amount of collateral decreased is proportional to amount of size decreased
-            _position.collateral -= absoultePnl;
+            _position.collateral -= absolutePnl;
         } else {
-            ERC20(collateralToken).safeTransfer(msg.sender, realizedPnl);
+            ERC20(collateralToken).safeTransfer(
+                msg.sender,
+                // Conversion here is safe, as realizedPnl is greater than 0
+                realizedPnl.toUint256()
+            );
         }
-        _position.size -= _removeSize;
+        _position.size -= removeSize;
 
         // Decrease open interest
         if (_position.isLong) {
-            openInterstInUnderlyingLong -= _removeSize;
-            openInterestUSDLong += _removeSize * price;
+            openInterstInUnderlyingLong -= removeSize;
+            openInterestUSDLong += removeSize * price;
         } else {
-            openInterstInUnderlyingShort -= _removeSize;
-            openInterestUSDShort -= _removeSize * price;
+            openInterstInUnderlyingShort -= removeSize;
+            openInterestUSDShort -= removeSize * price;
         }
 
         // If size is decreased to 0, tclose the position
@@ -118,8 +131,8 @@ contract MarketUtils is MarketStorage {
     }
 
     /** @notice Function to calculate the liquidation fee */
-    function _getFee(uint256 _collateral) internal returns (uint256) {
-        return (_collateral * liquidationFeePercentage).div(DENOMIANTOR);
+    function _getFee(uint256 _collateral) internal view returns (uint256) {
+        return (_collateral * liquidationFeePercentage).div(MAXIMUM_BPS);
     }
 
     // Liquidity reserves are calculated (depositedLiquidity * maxUtilizationPercentage)
