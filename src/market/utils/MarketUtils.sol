@@ -76,7 +76,8 @@ contract MarketUtils is MarketStorage {
         address _user,
         uint256 _removeSize,
         bool isLiquidating
-    ) internal returns (Position memory) {
+    ) internal returns (Position memory, uint256) {
+        uint256 fee;
         uint256 price = oracle.getPrice.toUint256();
         int256 pnl = _calculateUserPnl(_user);
         int256 realizedPnl = pnl.mulDiv(_removeSize, _position.size);
@@ -103,7 +104,8 @@ contract MarketUtils is MarketStorage {
         if (_position.size == 0) {
             // Deduct the liquidation fee if needed
             if (isLiquidating) {
-                _position.collateral -= liquidationFee;
+                fee = _getFee(_position.collateral);
+                _position.collateral -= fee;
             }
             ERC20(collateralToken).safeTransfer(
                 msg.sender,
@@ -112,7 +114,12 @@ contract MarketUtils is MarketStorage {
             _position.collateral = 0;
         }
 
-        return _position;
+        return (_position, fee);
+    }
+
+    /** @notice Function to calculate the liquidation fee */
+    function _getFee(uint256 _collateral) internal returns (uint256) {
+        return (_collateral * liquidationFeePercentage).div(DENOMIANTOR);
     }
 
     // Liquidity reserves are calculated (depositedLiquidity * maxUtilizationPercentage)

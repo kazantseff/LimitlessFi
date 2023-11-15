@@ -42,7 +42,9 @@ contract MarketStorage {
     Vault public vault;
     EthUsdOracle public oracle;
     address collateralToken;
-    uint256 public liquidationFee;
+    uint256 public constant DENOMINATOR = 10_000;
+    // Denominated in BIPS
+    uint256 public liquidationFeePercentage; 
     // Max leverage for a position
     uint256 public maxLeverage;
     uint256 public minimumPositionSize;

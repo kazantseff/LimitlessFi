@@ -147,7 +147,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
             revert PositionNotOpen();
         if (removeSize > 0) {
             // Remove size and realize pnl
-            position = _removeSize(position, msg.sender, removeSize, false);
+            (position, /* fee */ ) = _removeSize(position, msg.sender, removeSize, false);
         }
 
         if (removeCollateral > 0) {
@@ -175,7 +175,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         );
         uint256 removeSize = position.size;
         // Remove the size, realize the pnl, transfer the collateral
-        position = _removeSize(position, user, removeSize, true);
+        (position, liquidationFee) = _removeSize(position, user, removeSize, true);
         ERC20(collateralToken).safeTransfer(msg.sender, liquidationFee);
         userPosition[user] = position;
 
@@ -190,8 +190,12 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         maxLeverage = _maxLeverage;
     }
 
-    function setLiquidationFee(uint256 _fee) external onlyOwner {
-        liquidationFee = _fee;
+    // Denominated in BIPS
+    function setLiquidationFeePercentage(
+        uint256 _feePercentage
+    ) external onlyOwner {
+        require(_feePercentage < 100, "Fee is too high")
+        liquidationFeePercentage = _feePercentage;
     }
 }
 
