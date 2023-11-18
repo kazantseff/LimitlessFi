@@ -35,6 +35,7 @@ contract MarketStorage {
         uint256 size;
         uint256 averagePrice;
         bool isLong;
+        uint256 lastTimestampAccrued;
     }
 
     mapping(address => Position position) public userPosition;
@@ -42,7 +43,9 @@ contract MarketStorage {
     Vault public vault;
     EthUsdOracle public oracle;
     address collateralToken;
+    uint256 internal constant SCALE_FACTOR = 1e18;
     uint256 internal constant MAXIMUM_BPS = 10_000;
+    uint256 internal constant SECONDS_IN_YEAR = 31_536_000;
     // Denominated in BIPS
     uint256 internal liquidationFeePercentage;
     // Max leverage for a position

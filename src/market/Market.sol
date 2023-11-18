@@ -58,6 +58,8 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         position.collateral = collateral;
         position.averagePrice = price;
         position.isLong = isLong;
+        // Initialize time of lastAccrual with block.timestamp
+        position.lastTimestampAccrued = block.timestamp;
 
         userPosition[msg.sender] = position;
 
@@ -147,7 +149,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
             revert PositionNotOpen();
         if (removeSize > 0) {
             // Remove size and realize pnl
-            (position /* fee */, ) = _removeSize(
+            (position /*fee */, ) = _removeSize(
                 position,
                 msg.sender,
                 removeSize,
@@ -187,8 +189,8 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
             removeSize,
             true
         );
-        ERC20(collateralToken).safeTransfer(msg.sender, liquidationFee);
         userPosition[user] = position;
+        ERC20(collateralToken).safeTransfer(msg.sender, liquidationFee);
 
         emit PositionLiquidated(user);
     }

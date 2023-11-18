@@ -21,6 +21,7 @@ contract Vault is ERC4626, Ownable {
     LimitlessMarket private market;
     uint256 public maxUtilizationPercentage;
     uint256 public totalLiquidityDeposited;
+    uint256 public borrowingFees;
 
     // Underlying will be USDC
     constructor(
@@ -71,4 +72,5 @@ contract Vault is ERC4626, Ownable {
 
         emit MarketSet(_market);
     }
+    // #TODO: Implement accrual of interest, so everu lp depositor gets the proportinal amount of earned fees
 }

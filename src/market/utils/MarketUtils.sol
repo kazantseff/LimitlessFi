@@ -135,6 +135,31 @@ contract MarketUtils is MarketStorage {
         return (_collateral * liquidationFeePercentage).div(MAXIMUM_BPS);
     }
 
+    /** @notice Calculates interest on the position of the trader until block.timestamp
+     * @return borrowingFee in index token (ETH)
+     */
+    function _calculateInterest(
+        Position memory _position
+    ) internal view returns (uint256) {
+        // BorrowingFee = positionSize * secondsSincePositionUpdated * feesPerSharePerSecond
+        // feePerSharePerSecond = 1 / 315_360_000
+        uint256 deltaTime = block.timestamp - _position.lastTimestampAccrued;
+        // Because feePerSharePerSecond was multiplied by 1e18, we need to divide final result by 1e18
+        uint256 borrowingFee = (_position.size *
+            deltaTime *
+            _getBorrowingPerSharePerSecond()) / SCALE_FACTOR;
+        return borrowingFee;
+    }
+
+    /** @notice Return borrowingFeePerSharePerSecond */
+    // feePerSharePerSecond is 1 / 315_360_000
+    // So we multiply by 1e18 => 1e18 / 315_360_000
+    function _getBorrowingPerSharePerSecond() internal pure returns (uint256) {
+        // Approximately 3.17e9
+        // It give 10% rate per year
+        return SCALE_FACTOR / (SECONDS_IN_YEAR * 10);
+    }
+
     // Liquidity reserves are calculated (depositedLiquidity * maxUtilizationPercentage)
     function _calculateLiquidityReserves() internal view returns (uint256) {
         uint256 depositedLiquidity = vault.totalLiquidityDeposited();
