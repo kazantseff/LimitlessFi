@@ -139,13 +139,14 @@ contract MarketUtils is MarketStorage {
      * @return borrowingFee in index token (ETH)
      */
     function _calculateInterest(
-        Position memory _position
+        uint256 size,
+        uint256 lastAccruedTimeStamp
     ) internal view returns (uint256) {
         // BorrowingFee = positionSize * secondsSincePositionUpdated * feesPerSharePerSecond
         // feePerSharePerSecond = 1 / 315_360_000
-        uint256 deltaTime = block.timestamp - _position.lastTimestampAccrued;
+        uint256 deltaTime = block.timestamp - lastAccruedTimeStamp;
         // Because feePerSharePerSecond was multiplied by 1e18, we need to divide final result by 1e18
-        uint256 borrowingFee = (_position.size *
+        uint256 borrowingFee = (size *
             deltaTime *
             _getBorrowingPerSharePerSecond()) / SCALE_FACTOR;
         return borrowingFee;
