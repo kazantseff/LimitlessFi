@@ -21,8 +21,10 @@ contract Vault is ERC4626, Ownable {
 
     LimitlessMarket private market;
     uint256 public maxUtilizationPercentage;
+    // The amount of underlying deposited
     uint256 public totalLiquidityDeposited;
     uint256 public borrowingFees;
+    mapping(address user => uint256 amount) public userLP;
 
     // Underlying will be USDC
     constructor(
@@ -44,6 +46,7 @@ contract Vault is ERC4626, Ownable {
     ) public override returns (uint256 shares) {
         totalLiquidityDeposited += assets;
         shares = super.deposit(assets, receiver);
+        userLP[receiver] += shares;
     }
 
     function redeem(
@@ -53,6 +56,7 @@ contract Vault is ERC4626, Ownable {
     ) public override returns (uint256 assets) {
         assets = super.redeem(shares, receiver, owner);
         totalLiquidityDeposited -= assets;
+        userLP[owner] -= shares;
         // This check enusures that after withdrawal (totalOpenInterest < (depositedLiquidity * utilizationPercentage))
         require(
             market._ensureLiquidityReserves(),
