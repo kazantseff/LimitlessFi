@@ -117,7 +117,7 @@ contract MarketUtils is MarketStorage {
         if (_position.size == 0) {
             // Deduct the liquidation fee if needed
             if (isLiquidating) {
-                fee = _getFee(_position.collateral);
+                fee = _getLiquidationFee(_position.collateral);
                 _position.collateral -= fee;
             }
             ERC20(collateralToken).safeTransfer(
@@ -131,7 +131,9 @@ contract MarketUtils is MarketStorage {
     }
 
     /** @notice Function to calculate the liquidation fee */
-    function _getFee(uint256 _collateral) internal view returns (uint256) {
+    function _getLiquidationFee(
+        uint256 _collateral
+    ) internal view returns (uint256) {
         return (_collateral * liquidationFeePercentage).div(MAXIMUM_BPS);
     }
 
@@ -151,6 +153,8 @@ contract MarketUtils is MarketStorage {
             _getBorrowingPerSharePerSecond()) / SCALE_FACTOR;
         return borrowingFee;
     }
+
+    // #TODO: AccrueInterest that will transfer borrowingfees to Vault
 
     /** @notice Return borrowingFeePerSharePerSecond */
     // feePerSharePerSecond is 1 / 315_360_000

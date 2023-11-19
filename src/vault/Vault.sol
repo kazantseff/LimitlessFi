@@ -59,6 +59,8 @@ contract Vault is ERC4626, Ownable {
         );
     }
 
+    // #TODO: Function to accept borrowing fees from market
+
     function setUtilizationPercentage(
         uint256 utilizationRate
     ) external onlyOwner {
