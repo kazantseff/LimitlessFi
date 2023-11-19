@@ -6,6 +6,7 @@ import "solmate/tokens/ERC20.sol";
 import "solmate/utils/SafeTransferLib.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import {LimitlessMarket} from "../market/Market.sol";
 
 error ProtocolInsolvent();
@@ -14,15 +15,18 @@ contract Vault is ERC4626, Ownable {
     using SafeTransferLib for ERC20;
     using SafeCast for uint;
     using SafeCast for int;
+    using Math for uint;
 
     event UtilizationPercentageSet(uint256 indexed utilizationPercentage);
     event MarketSet(address indexed market);
     event BorrowingFeesDeposited(uint256 indexed amount);
+    event BorrowingFeesClaimed(address indexed user, uint256 indexed amount);
 
     LimitlessMarket private market;
     uint256 public maxUtilizationPercentage;
     // The amount of underlying deposited
     uint256 public totalUnderlyingDeposited;
+    uint256 public totalShares;
     uint256 public borrowingFees;
     mapping(address user => uint256 amount) public userLP;
 
@@ -36,7 +40,7 @@ contract Vault is ERC4626, Ownable {
         int256 balanceOfVault = totalUnderlyingDeposited.toInt256();
         // Pnl can be negative, but totalAssets should be at least 0
         int256 _totalAssets = balanceOfVault - market._calculateProtocolPnl();
-        if (_totalAssets < 0) revert ProtocolInsolvent();
+        assert(_totalAssets > 0);
         return _totalAssets.toUint256();
     }
 
@@ -45,9 +49,10 @@ contract Vault is ERC4626, Ownable {
         uint256 assets,
         address receiver
     ) public override returns (uint256 shares) {
-        totalUnderlyingDeposited += assets;
         shares = super.deposit(assets, receiver);
+        totalUnderlyingDeposited += assets;
         userLP[receiver] += shares;
+        totalShares += shares;
     }
 
     /** @notice Function to redeem LP */
@@ -59,6 +64,8 @@ contract Vault is ERC4626, Ownable {
         assets = super.redeem(shares, receiver, owner);
         totalUnderlyingDeposited -= assets;
         userLP[owner] -= shares;
+        totalShares -= shares;
+
         // This check enusures that after withdrawal (totalOpenInterest < (depositedLiquidity * utilizationPercentage))
         require(
             market._ensureLiquidityReserves(),
@@ -79,7 +86,12 @@ contract Vault is ERC4626, Ownable {
         require(borrowingFees > 0, "Nothing to claim.");
         require(userLP[msg.sender] != 0, "Not LP depositor.");
         // To calcualte pro-rata we need to divide the totalAmount of fees by total LP shares
-        // And then multiply the result by user's LP
+        // This way we get feesPerShare, and then multiply it by user amount of shares
+        uint256 fees = borrowingFees.mulDiv(userLP[msg.sender], totalShares);
+        borrowingFees -= fees;
+        ERC20(asset).safeTransfer(msg.sender, fees);
+
+        emit BorrowingFeesClaimed(msg.sender, fees);
     }
 
     function setUtilizationPercentage(
