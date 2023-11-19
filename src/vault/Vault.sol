@@ -22,7 +22,7 @@ contract Vault is ERC4626, Ownable {
     LimitlessMarket private market;
     uint256 public maxUtilizationPercentage;
     // The amount of underlying deposited
-    uint256 public totalLiquidityDeposited;
+    uint256 public totalUnderlyingDeposited;
     uint256 public borrowingFees;
     mapping(address user => uint256 amount) public userLP;
 
@@ -31,31 +31,33 @@ contract Vault is ERC4626, Ownable {
         ERC20 _underlying
     ) ERC4626(_underlying, "LimitlessToken", "LMTLS") Ownable(msg.sender) {}
 
+    /** @notice Returns the amount of underlying accounting for the protocol PNL */
     function totalAssets() public view override returns (uint256) {
-        int256 balanceOfVault = totalLiquidityDeposited.toInt256();
+        int256 balanceOfVault = totalUnderlyingDeposited.toInt256();
         // Pnl can be negative, but totalAssets should be at least 0
         int256 _totalAssets = balanceOfVault - market._calculateProtocolPnl();
         if (_totalAssets < 0) revert ProtocolInsolvent();
         return _totalAssets.toUint256();
     }
 
-    // Deposit
+    /** @notice Function to deposit LP */
     function deposit(
         uint256 assets,
         address receiver
     ) public override returns (uint256 shares) {
-        totalLiquidityDeposited += assets;
+        totalUnderlyingDeposited += assets;
         shares = super.deposit(assets, receiver);
         userLP[receiver] += shares;
     }
 
+    /** @notice Function to redeem LP */
     function redeem(
         uint256 shares,
         address receiver,
         address owner
     ) public override returns (uint256 assets) {
         assets = super.redeem(shares, receiver, owner);
-        totalLiquidityDeposited -= assets;
+        totalUnderlyingDeposited -= assets;
         userLP[owner] -= shares;
         // This check enusures that after withdrawal (totalOpenInterest < (depositedLiquidity * utilizationPercentage))
         require(
@@ -73,6 +75,13 @@ contract Vault is ERC4626, Ownable {
         emit BorrowingFeesDeposited(amount);
     }
 
+    function claimBorrowingFees() external {
+        require(borrowingFees > 0, "Nothing to claim.");
+        require(userLP[msg.sender] != 0, "Not LP depositor.");
+        // To calcualte pro-rata we need to divide the totalAmount of fees by total LP shares
+        // And then multiply the result by user's LP
+    }
+
     function setUtilizationPercentage(
         uint256 utilizationRate
     ) external onlyOwner {
@@ -86,5 +95,4 @@ contract Vault is ERC4626, Ownable {
 
         emit MarketSet(_market);
     }
-    // #TODO: Implement accrual of interest, so everu lp depositor gets the proportinal amount of earned fees
 }
