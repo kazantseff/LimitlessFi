@@ -17,6 +17,7 @@ contract Vault is ERC4626, Ownable {
 
     event UtilizationPercentageSet(uint256 indexed utilizationPercentage);
     event MarketSet(address indexed market);
+    event BorrowingFeesDeposited(uint256 indexed amount);
 
     LimitlessMarket private market;
     uint256 public maxUtilizationPercentage;
@@ -59,7 +60,14 @@ contract Vault is ERC4626, Ownable {
         );
     }
 
-    // #TODO: Function to accept borrowing fees from market
+    /** @notice Function to accept borrowing fees from a market */
+    function depositBorrowingFees(uint256 amount) external {
+        require(msg.sender == address(market), "Caller is not a market");
+        borrowingFees += amount;
+        ERC20(asset).safeTransferFrom(address(market), address(this), amount);
+
+        emit BorrowingFeesDeposited(amount);
+    }
 
     function setUtilizationPercentage(
         uint256 utilizationRate

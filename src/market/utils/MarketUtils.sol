@@ -154,6 +154,30 @@ contract MarketUtils is MarketStorage {
         return borrowingFee;
     }
 
+    /** @notice Function that accrues interest on position and transfers fees to the vault */
+    function _accrueInterest(
+        Position memory _position
+    ) internal returns (Position memory) {
+        // calculate outstanding fees of the position in indexToken
+        uint256 borrowingFee = _calculateInterest(
+            _position.size,
+            _position.lastTimestampAccrued
+        );
+        uint256 price = oracle.getPrice().toUint256();
+        // As borrowingFee is in indexToken, there is a need to convert it to USDC
+        uint256 borrowingFeesInCollateralScaled = (borrowingFee * price) / 1e10;
+        _position.lastTimestampAccrued = block.timestamp;
+        _position.collateral -= borrowingFeesInCollateralScaled * 1e10;
+        // Approve vault
+        ERC20(collateralToken).approve(
+            address(vault),
+            borrowingFeesInCollateralScaled
+        );
+        // Deposit fees into vault
+        vault.depositBorrowingFees(borrowingFeesInCollateralScaled);
+        return _position;
+    }
+
     // #TODO: AccrueInterest that will transfer borrowingfees to Vault
 
     /** @notice Return borrowingFeePerSharePerSecond */

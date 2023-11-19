@@ -86,6 +86,8 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         // Do not allow closing of the position
         if (addSize == 0 && addCollateral == 0) revert CannotClosePosition();
 
+        position = _accrueInterest(position);
+
         uint256 price = oracle.getPrice().toUint256();
         // First add collateral, so later if user also wants to increase the size
         // Checks will be made on new amount of collateral
@@ -147,6 +149,9 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         Position memory position = userPosition[msg.sender];
         if (position.size == 0 || position.collateral == 0)
             revert PositionNotOpen();
+
+        position = _accrueInterest(position);
+
         if (removeSize > 0) {
             // Remove size and realize pnl
             (position /*fee */, ) = _removeSize(
@@ -181,6 +186,8 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
             !_checkLeverage(position.size, position.collateral),
             "Position is not liquiditable."
         );
+        position = _accrueInterest(position);
+
         uint256 removeSize = position.size;
         // Remove the size, realize the pnl, transfer the collateral
         (position, liquidationFee) = _removeSize(
