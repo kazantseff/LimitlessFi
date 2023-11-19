@@ -178,8 +178,6 @@ contract MarketUtils is MarketStorage {
         return _position;
     }
 
-    // #TODO: AccrueInterest that will transfer borrowingfees to Vault
-
     /** @notice Return borrowingFeePerSharePerSecond */
     // feePerSharePerSecond is 1 / 315_360_000
     // So we multiply by 1e18 => 1e18 / 315_360_000
