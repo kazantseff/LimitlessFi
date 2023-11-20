@@ -1,6 +1,6 @@
-# [Project Name]
+# [LimitlessFi]
 
-[One-sentence description of your DeFi protocol.]
+[A decentralized perpetual protocol]
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@
 
 ## Introduction
 
-[Provide a brief overview of your DeFi protocol. Explain its purpose, key features, and benefits.]
+[Provide a brife overview of your DeFi protocol. Explain its purpose, key features, and benefits.]
 
 ## Features
 
