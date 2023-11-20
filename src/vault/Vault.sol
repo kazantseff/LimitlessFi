@@ -82,6 +82,11 @@ contract Vault is ERC4626, Ownable {
         emit BorrowingFeesDeposited(amount);
     }
 
+    // There should be a function to accrue fees to a user based on pro-rata
+    // Currently borrowers pay 10% a year on their position
+    // Lenders should receive <= 10% on their deposit's per year
+
+    // #TODO: Requires a fix, since currently one user can claim all fees
     function claimBorrowingFees() external {
         require(borrowingFees > 0, "Nothing to claim.");
         require(userLP[msg.sender] != 0, "Not LP depositor.");
