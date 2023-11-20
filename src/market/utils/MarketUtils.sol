@@ -40,7 +40,7 @@ contract MarketUtils is MarketStorage {
     }
 
     /** @notice Calculates total Pnl of the protocol
-     * @return Can return negative value, which means liquidity providers are losing money
+     * @return Will return positive value if the traders are in profit
      */
     function _calculateProtocolPnl() external view returns (int256) {
         int256 price = oracle.getPrice();

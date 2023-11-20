@@ -45,7 +45,7 @@ contract Vault is ERC4626, Ownable {
     function totalAssets() public view override returns (uint256) {
         int256 balanceOfVault = totalUnderlyingDeposited.toInt256();
         // Pnl can be negative, but totalAssets should be at least 0
-        int256 _totalAssets = balanceOfVault + market._calculateProtocolPnl();
+        int256 _totalAssets = balanceOfVault - market._calculateProtocolPnl();
         assert(_totalAssets > 0);
         return _totalAssets.toUint256();
     }
