@@ -20,9 +20,11 @@ contract Vault is ERC4626, Ownable {
     event UtilizationPercentageSet(uint256 indexed utilizationPercentage);
     event MarketSet(address indexed market);
     event BorrowingFeesDeposited(uint256 indexed amount);
+    event BorrowingFeesAccrued(address indexed user, uint256 indexed amount);
     event BorrowingFeesClaimed(address indexed user, uint256 indexed amount);
 
     LimitlessMarket private market;
+    uint256 internal constant SCALE_FACTOR = 1e18;
     uint256 public maxUtilizationPercentage;
     // The amount of underlying deposited
     uint256 public totalUnderlyingDeposited;
@@ -30,11 +32,11 @@ contract Vault is ERC4626, Ownable {
     uint256 public borrowingFees;
 
     struct userPosition {
-        uint256 userLP;
+        uint256 userShares;
         uint256 userFeesToClaim;
         uint256 lastAccruedTimestamp;
     }
-    mapping(address => userPosition) public usersPosition;
+    mapping(address => userPosition) public userToPosition;
 
     // Underlying will be USDC
     constructor(
@@ -46,7 +48,7 @@ contract Vault is ERC4626, Ownable {
         int256 balanceOfVault = totalUnderlyingDeposited.toInt256();
         // Pnl can be negative, but totalAssets should be at least 0
         int256 _totalAssets = balanceOfVault - market._calculateProtocolPnl();
-        assert(_totalAssets > 0);
+        // assert(_totalAssets > 0);
         return _totalAssets.toUint256();
     }
 
@@ -55,9 +57,12 @@ contract Vault is ERC4626, Ownable {
         uint256 assets,
         address receiver
     ) public override returns (uint256 shares) {
+        accrueFees(receiver);
+
         shares = super.deposit(assets, receiver);
         totalUnderlyingDeposited += assets;
-        usersPosition[receiver].userLP += shares;
+        userToPosition[receiver].userShares += shares;
+        userToPosition[receiver].lastAccruedTimestamp = block.timestamp;
         totalShares += shares;
     }
 
@@ -67,9 +72,11 @@ contract Vault is ERC4626, Ownable {
         address receiver,
         address owner
     ) public override returns (uint256 assets) {
+        accrueFees(owner);
+
         assets = super.redeem(shares, receiver, owner);
         totalUnderlyingDeposited -= assets;
-        usersPosition[owner].userLP -= shares;
+        userToPosition[owner].userShares -= shares;
         totalShares -= shares;
 
         // This check enusures that after withdrawal (totalOpenInterest < (depositedLiquidity * utilizationPercentage))
@@ -88,27 +95,38 @@ contract Vault is ERC4626, Ownable {
         emit BorrowingFeesDeposited(amount);
     }
 
-    /** @notice Function that will distribute accruedFees to depositor to claim based on pro rata */
-    // function distributeFees(address _user) external {
-    //     usersPosition memory position = usersPosition[_user];
-    //     // For the case of the first ever deposit, we should just set the timer to start accruing fees
-    //     if (position.lastAccruedTimeStamp == 0) {
-    //         position.lastAccruedTimeStamp = block.timestamp;
-    //         return;
-    //     }
-    // }
+    /** @notice Function to accrue fees to a user
+     * Calculates the amount to accrue based on time spent in market and the pro rata share of the pool
+     */
+    function accrueFees(address user) public {
+        userPosition memory position = userToPosition[user];
+        uint256 deltaTime = block.timestamp - position.lastAccruedTimestamp;
+        uint256 userShare = (position.userShares * SCALE_FACTOR) / totalShares;
+        if (deltaTime > 0) {
+            if (borrowingFees > 0) {
+                uint256 accruedSinceUpdate = (deltaTime *
+                    getDistributionSpeed() *
+                    userShare) / SCALE_FACTOR;
+                borrowingFees -= accruedSinceUpdate;
+                position.userFeesToClaim += accruedSinceUpdate;
+                position.lastAccruedTimestamp = block.timestamp;
+                userToPosition[user] = position;
 
-    // function claimBorrowingFees() external {
-    //     require(borrowingFees > 0, "Nothing to claim.");
-    //     require(userLP[msg.sender] != 0, "Not LP depositor.");
-    //     // To calcualte pro-rata we need to divide the totalAmount of fees by total LP shares
-    //     // This way we get feesPerShare, and then multiply it by user amount of shares
-    //     uint256 fees = borrowingFees.mulDiv(userLP[msg.sender], totalShares);
-    //     borrowingFees -= fees;
-    //     ERC20(asset).safeTransfer(msg.sender, fees);
+                emit BorrowingFeesAccrued(user, accruedSinceUpdate);
+            }
+        }
+    }
 
-    //     emit BorrowingFeesClaimed(msg.sender, fees);
-    // }
+    function claimBorrowingFees() external {
+        userPosition memory position = userToPosition[msg.sender];
+        uint256 claimAmount = position.userFeesToClaim;
+        require(claimAmount > 0, "Nothing to claim.");
+        ERC20(asset).safeTransfer(msg.sender, claimAmount);
+        position.userFeesToClaim = 0;
+        userToPosition[msg.sender] = position;
+
+        emit BorrowingFeesClaimed(msg.sender, claimAmount);
+    }
 
     function setUtilizationPercentage(
         uint256 utilizationRate
@@ -122,5 +140,10 @@ contract Vault is ERC4626, Ownable {
         market = LimitlessMarket(_market);
 
         emit MarketSet(_market);
+    }
+
+    function getDistributionSpeed() internal view returns (uint256) {
+        // Distrubute tokens on an hourly basis
+        return borrowingFees / 3600;
     }
 }
