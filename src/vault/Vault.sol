@@ -9,8 +9,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import {LimitlessMarket} from "../market/Market.sol";
 
-error ProtocolInsolvent();
-
 contract Vault is ERC4626, Ownable {
     using SafeTransferLib for ERC20;
     using SafeCast for uint;
