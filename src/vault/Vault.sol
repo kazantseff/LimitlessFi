@@ -62,7 +62,6 @@ contract Vault is ERC4626, Ownable {
         shares = super.deposit(assets, receiver);
         totalUnderlyingDeposited += assets;
         userToPosition[receiver].userShares += shares;
-        userToPosition[receiver].lastAccruedTimestamp = block.timestamp;
         totalShares += shares;
     }
 
@@ -109,11 +108,11 @@ contract Vault is ERC4626, Ownable {
                     userShare) / SCALE_FACTOR;
                 borrowingFees -= accruedSinceUpdate;
                 position.userFeesToClaim += accruedSinceUpdate;
-                position.lastAccruedTimestamp = block.timestamp;
                 userToPosition[user] = position;
 
                 emit BorrowingFeesAccrued(user, accruedSinceUpdate);
             }
+            position.lastAccruedTimestamp = block.timestamp;
         }
     }
 
