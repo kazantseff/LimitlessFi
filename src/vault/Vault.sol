@@ -127,6 +127,7 @@ contract LimitlessVault is ERC4626, Ownable {
         emit BorrowingFeesClaimed(msg.sender, claimAmount);
     }
 
+    // Denominated in BPS
     function setUtilizationPercentage(
         uint256 utilizationRate
     ) external onlyOwner {

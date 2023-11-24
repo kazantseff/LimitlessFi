@@ -190,8 +190,9 @@ contract MarketUtils is MarketStorage {
     // Liquidity reserves are calculated (depositedLiquidity * maxUtilizationPercentage)
     function _calculateLiquidityReserves() internal view returns (uint256) {
         uint256 depositedLiquidity = vault.totalUnderlyingDeposited();
-        uint256 reserves = depositedLiquidity *
-            vault.maxUtilizationPercentage();
+        // utilizationPercentage is denominated in BPS
+        uint256 reserves = (depositedLiquidity *
+            vault.maxUtilizationPercentage()) / MAXIMUM_BPS;
         return reserves;
     }
 

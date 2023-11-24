@@ -211,7 +211,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         maxLeverage = _maxLeverage;
     }
 
-    // Denominated in BIPS
+    // Denominated in BPS
     function setLiquidationFeePercentage(
         uint256 _feePercentage
     ) external onlyOwner {
