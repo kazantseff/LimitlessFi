@@ -95,6 +95,7 @@ contract Vault is ERC4626, Ownable {
     /** @notice Function to accrue fees to a user
      * Calculates the amount to accrue based on time spent in market and the pro rata share of the pool
      */
+    // #TODO: Doee not work correctly, requires fix
     function accrueFees(address user) public {
         userPosition memory position = userToPosition[user];
         uint256 deltaTime = block.timestamp - position.lastAccruedTimestamp;
