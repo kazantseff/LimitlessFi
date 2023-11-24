@@ -38,8 +38,9 @@ contract LimitlessVault is ERC4626, Ownable {
 
     // Underlying will be USDC
     constructor(
-        ERC20 _underlying
-    ) ERC4626(_underlying, "LimitlessToken", "LMTLS") Ownable(msg.sender) {}
+        ERC20 _underlying,
+        address _owner
+    ) ERC4626(_underlying, "LimitlessToken", "LMTLS") Ownable(_owner) {}
 
     /** @notice Returns the amount of underlying accounting for the protocol PNL */
     function totalAssets() public view override returns (uint256) {

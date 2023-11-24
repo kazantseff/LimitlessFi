@@ -19,8 +19,9 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
     constructor(
         address _collateralToken,
         address _oracle,
-        address _vault
-    ) Ownable(msg.sender) {
+        address _vault,
+        address _owner
+    ) Ownable(_owner) {
         collateralToken = _collateralToken;
         oracle = EthUsdOracle(_oracle);
         vault = LimitlessVault(_vault);
