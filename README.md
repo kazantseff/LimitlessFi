@@ -1,6 +1,6 @@
 # LimitlessFi
 
-A decentralized perpetual protocol.
+Decentralized perpetual protocol.
 
 ## Table of Contents
 
