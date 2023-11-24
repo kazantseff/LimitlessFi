@@ -10,6 +10,7 @@ import {MockV3Aggregator} from "../mocks/MockV3Aggregator.sol";
 // This is going to be the base contract for testing purposes
 // Each test contract will be inheriting from this one, so there is no need to rewrite functions that are used multiple times
 contract Test is ForgeTest {
+    address internal owner = makeAddr("owner");
     MockERC20 internal usdc;
     MockV3Aggregator internal priceOracle;
     LimitlessVault internal vault;
@@ -29,20 +30,23 @@ contract Test is ForgeTest {
     }
 
     function deployVault() internal asSelf {
-        vault = new LimitlessVault(ERC20(usdc));
+        vault = new LimitlessVault(ERC20(usdc), owner);
     }
 
     function deployMarket() internal asSelf {
         market = new LimitlessMarket(
             address(usdc),
             address(priceOracle),
-            address(vault)
+            address(vault),
+            owner
         );
     }
 
+    // Deploys vault with market, set market as a `market` in vault
     function deployVaultAndMarket() internal asSelf {
         deployVault();
-
         deployMarket();
+        vm.prank(owner);
+        vault.setMarket(address(market));
     }
 }
