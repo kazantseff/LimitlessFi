@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {EthUsdOracle} from "../oracle/ethUsdOracle.sol";
-import {Vault} from "../vault/Vault.sol";
+import {LimitlessVault} from "../vault/Vault.sol";
 
 error PositionNotOpen();
 error PositionCannotBeDecreased();
@@ -40,7 +40,7 @@ contract MarketStorage {
 
     mapping(address => Position position) public userPosition;
 
-    Vault public vault;
+    LimitlessVault public vault;
     EthUsdOracle public oracle;
     address collateralToken;
     uint256 internal constant SCALE_FACTOR = 1e18;

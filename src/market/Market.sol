@@ -8,7 +8,7 @@ import "solmate/utils/SafeTransferLib.sol";
 import "../lib/SafeMath.sol";
 import "@openzeppelin/contracts/utils/math/SignedMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import {Vault} from "../vault/Vault.sol";
+import {LimitlessVault} from "../vault/Vault.sol";
 
 contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
     using SafeCast for int;
@@ -23,7 +23,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
     ) Ownable(msg.sender) {
         collateralToken = _collateralToken;
         oracle = EthUsdOracle(_oracle);
-        vault = Vault(_vault);
+        vault = LimitlessVault(_vault);
     }
 
     /** @notice Function to open position
