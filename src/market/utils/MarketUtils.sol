@@ -189,18 +189,20 @@ contract MarketUtils is MarketStorage {
 
     // Liquidity reserves are calculated (depositedLiquidity * maxUtilizationPercentage)
     function _calculateLiquidityReserves() internal view returns (uint256) {
+        // Liquidity is in 1e8 precisions, need to scale it up
         uint256 depositedLiquidity = vault.totalUnderlyingDeposited();
         // utilizationPercentage is denominated in BPS
         uint256 reserves = (depositedLiquidity *
             vault.maxUtilizationPercentage()) / MAXIMUM_BPS;
-        return reserves;
+        return reserves * 1e10;
     }
 
     // shortOpenInterstUSD + (longOpenInterestTokens * price) < (depositedLiquidity * utilizationPercentage)
     function _ensureLiquidityReserves() public view returns (bool) {
         uint256 price = oracle.getPrice().toUint256();
         if (
-            openInterestUSDShort + (openInterstInUnderlyingLong * price) <
+            openInterestUSDShort +
+                ((openInterstInUnderlyingLong * price) / SCALE_FACTOR) <
             _calculateLiquidityReserves()
         ) {
             return true;

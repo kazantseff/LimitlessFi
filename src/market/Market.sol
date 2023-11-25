@@ -47,10 +47,10 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         // Account for open interest
         uint256 price = oracle.getPrice().toUint256();
         if (isLong) {
-            openInterestUSDLong += size * price;
+            openInterestUSDLong += (size * price) / SCALE_FACTOR;
             openInterstInUnderlyingLong += size;
         } else {
-            openInterestUSDShort += size * price;
+            openInterestUSDShort += (size * price) / SCALE_FACTOR;
             openInterstInUnderlyingShort += size;
         }
 
@@ -112,17 +112,18 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
             // Increase the open interest
             if (position.isLong) {
                 openInterstInUnderlyingLong += addSize;
-                openInterestUSDLong += addSize * price;
+                openInterestUSDLong += (addSize * price) / SCALE_FACTOR;
             } else {
                 openInterstInUnderlyingShort += addSize;
-                openInterestUSDShort += addSize * price;
+                openInterestUSDShort += (addSize * price) / SCALE_FACTOR;
             }
 
             // Formula to calculate average price
             // (totalCostEntry1 + totalCostEntry2) / (totalQuantityEntry1 + totalQuantityEntry2)
             // totalCost = price * amount
-            uint256 totalCostEntry1 = position.averagePrice * oldSize;
-            uint256 totalCostEntry2 = price * addSize;
+            uint256 totalCostEntry1 = (position.averagePrice * oldSize) /
+                SCALE_FACTOR;
+            uint256 totalCostEntry2 = (price * addSize) / SCALE_FACTOR;
             uint256 averagePrice = (totalCostEntry1 + totalCostEntry2).div(
                 oldSize + addSize
             );
