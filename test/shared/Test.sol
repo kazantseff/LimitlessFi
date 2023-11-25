@@ -13,6 +13,7 @@ contract Test is ForgeTest {
     address internal owner = makeAddr("owner");
     address internal aliceDepositor = makeAddr("aliceDepositor");
     address internal bobDepositor = makeAddr("bobDepositor");
+    address internal trader = makeAddr("trader");
     MockERC20 internal usdc;
     MockV3Aggregator internal priceOracle;
     LimitlessVault internal vault;
@@ -34,7 +35,7 @@ contract Test is ForgeTest {
     constructor() {
         usdc = new MockERC20();
         // Deploy price oracle for ETH with 8 decimals, and 2000 as initial answer
-        priceOracle = new MockV3Aggregator(DECIMALS, 2000e18);
+        priceOracle = new MockV3Aggregator(DECIMALS, 2000e8);
     }
 
     function deployVault() internal asSelf {
