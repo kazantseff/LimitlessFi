@@ -83,8 +83,6 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         Position memory position = userPosition[msg.sender];
         if (position.size == 0 || position.collateral == 0)
             revert PositionNotOpen();
-        // Do not allow closing of the position
-        if (addSize == 0 && addCollateral == 0) revert CannotClosePosition();
 
         position = _accrueInterest(position);
 
