@@ -56,7 +56,10 @@ contract LimitlessVault is ERC4626, Ownable {
         uint256 assets,
         address receiver
     ) public override returns (uint256 shares) {
-        accrueFees(receiver);
+        // Only accrueFees if user already has a position
+        if (userToPosition[receiver].userShares > 0) {
+            accrueFees(receiver);
+        }
 
         shares = super.deposit(assets, receiver);
         totalUnderlyingDeposited += assets;
