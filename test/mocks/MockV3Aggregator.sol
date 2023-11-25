@@ -66,7 +66,7 @@ contract MockV3Aggregator is AggregatorV3Interface {
     }
 
     function latestRoundData()
-        external
+        public
         view
         returns (
             uint80 roundId,
@@ -83,6 +83,11 @@ contract MockV3Aggregator is AggregatorV3Interface {
             getTimestamp[latestRound],
             uint80(latestRound)
         );
+    }
+
+    function getPrice() external view returns (int) {
+        (, int answer, , uint256 updatedAt, ) = latestRoundData();
+        return answer * 1e10;
     }
 
     function description() external pure returns (string memory) {

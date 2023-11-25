@@ -11,6 +11,8 @@ import {MockV3Aggregator} from "../mocks/MockV3Aggregator.sol";
 // Each test contract will be inheriting from this one, so there is no need to rewrite functions that are used multiple times
 contract Test is ForgeTest {
     address internal owner = makeAddr("owner");
+    address internal aliceDepositor = makeAddr("aliceDepositor");
+    address internal bobDepositor = makeAddr("bobDepositor");
     MockERC20 internal usdc;
     MockV3Aggregator internal priceOracle;
     LimitlessVault internal vault;
@@ -19,6 +21,12 @@ contract Test is ForgeTest {
 
     modifier asSelf() {
         vm.startPrank(address(this));
+        _;
+        vm.stopPrank();
+    }
+
+    modifier asAccount(address account) {
+        vm.startPrank(account);
         _;
         vm.stopPrank();
     }
@@ -48,5 +56,14 @@ contract Test is ForgeTest {
         deployMarket();
         vm.prank(owner);
         vault.setMarket(address(market));
+    }
+
+    function _depositInVault(
+        address user,
+        uint256 amount
+    ) internal asAccount(user) {
+        usdc.mint(user, amount);
+        usdc.approve(address(vault), amount);
+        vault.deposit(amount, user);
     }
 }
