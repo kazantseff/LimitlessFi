@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import {EthUsdOracle} from "../oracle/ethUsdOracle.sol";
 import {LimitlessVault} from "../vault/Vault.sol";
 
+error InvalidPositionSize();
 error PositionNotOpen();
 error PositionCannotBeDecreased();
 error CannotClosePosition();
