@@ -55,9 +55,9 @@ contract MarketStorage {
     uint256 internal maxLeverage;
     uint256 internal minimumPositionSize;
     // Measured in USD value, incremented by the "size" of the position
-    uint256 internal openInterestUSDLong;
+    uint256 public openInterestUSDLong;
     // Measured in index tokens, incremented by the "size in index tokens"
-    uint256 internal openInterstInUnderlyingLong;
-    uint256 internal openInterestUSDShort;
-    uint256 internal openInterstInUnderlyingShort;
+    uint256 public openInterstInUnderlyingLong;
+    uint256 public openInterestUSDShort;
+    uint256 public openInterstInUnderlyingShort;
 }
