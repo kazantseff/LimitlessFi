@@ -124,7 +124,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
             uint256 totalCostEntry2 = (price * addSize) / SCALE_FACTOR;
             uint256 averagePrice = (totalCostEntry1 + totalCostEntry2).div(
                 oldSize + addSize
-            );
+            ) * SCALE_FACTOR;
             position.averagePrice = averagePrice;
         }
 
