@@ -5,6 +5,8 @@ import {EthUsdOracle} from "../oracle/ethUsdOracle.sol";
 import {LimitlessVault} from "../vault/Vault.sol";
 
 error InvalidPositionSize();
+error PositionExceedsMaxLeverage();
+error PositionNotLiquidatable();
 error PositionNotOpen();
 error PositionCannotBeDecreased();
 error CannotClosePosition();

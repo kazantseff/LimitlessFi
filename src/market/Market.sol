@@ -38,10 +38,9 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         bool isLong
     ) external {
         if (size < minimumPositionSize) revert InvalidPositionSize();
-        require(
-            _checkLeverage(size, collateral),
-            "Position exceeds maxLeverage"
-        );
+        if (!_checkLeverage(size, collateral))
+            revert PositionExceedsMaxLeverage();
+
         Position memory position = userPosition[msg.sender];
         require(position.size == 0, "Position is already open");
 
@@ -107,10 +106,8 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         if (addSize > 0) {
             uint256 oldSize = position.size;
             position.size += addSize;
-            require(
-                _checkLeverage(position.size, position.collateral),
-                "Position exceeds maxLeverage"
-            );
+            if (!_checkLeverage(position.size, position.collateral))
+                revert PositionExceedsMaxLeverage();
 
             // Increase the open interest
             if (position.isLong) {
@@ -166,10 +163,8 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         if (removeCollateral > 0) {
             position.collateral -= removeCollateral;
             ERC20(collateralToken).safeTransfer(msg.sender, removeCollateral);
-            require(
-                _checkLeverage(position.size, position.collateral),
-                "Position exceeds maxLeverage"
-            );
+            if (!_checkLeverage(position.size, position.collateral))
+                revert PositionExceedsMaxLeverage();
         }
 
         userPosition[msg.sender] = position;
@@ -183,10 +178,8 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
     function liquidate(address user) external {
         Position memory position = userPosition[user];
         uint256 liquidationFee;
-        require(
-            !_checkLeverage(position.size, position.collateral),
-            "Position is not liquiditable."
-        );
+        if (_checkLeverage(position.size, position.collateral))
+            revert PositionNotLiquidatable();
         position = _accrueInterest(position);
 
         uint256 removeSize = position.size;
