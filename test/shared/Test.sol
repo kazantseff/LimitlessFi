@@ -43,7 +43,7 @@ contract Test is ForgeTest {
     }
 
     // Deploys vault with market, set market as a `market` in vault
-    function deployVaultAndMarket() internal asSelf {
+    function deployVaultAndMarket() internal {
         deployVault();
         deployMarket();
         vm.prank(owner);
