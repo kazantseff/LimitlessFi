@@ -10,6 +10,7 @@ error PositionNotLiquidatable();
 error PositionNotOpen();
 error PositionCannotBeDecreased();
 error CannotClosePosition();
+error NotEnoughLiquidity();
 
 contract MarketStorage {
     event PositionOpened(

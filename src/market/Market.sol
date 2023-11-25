@@ -70,7 +70,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
             collateral
         );
 
-        require(_ensureLiquidityReserves(), "Not enough liquidity");
+        if (!_ensureLiquidityReserves()) revert NotEnoughLiquidity();
 
         emit PositionOpened(msg.sender, size, collateral, isLong);
     }
@@ -132,7 +132,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
 
         userPosition[msg.sender] = position;
 
-        require(_ensureLiquidityReserves(), "Not enough liquidity");
+        if (!_ensureLiquidityReserves()) revert NotEnoughLiquidity();
 
         emit PositionIncreased(msg.sender, addSize, addCollateral);
     }
