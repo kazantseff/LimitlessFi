@@ -37,7 +37,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         uint256 collateral,
         bool isLong
     ) external {
-        require(size >= minimumPositionSize, "Position size below minimum");
+        if (size < minimumPositionSize) revert InvalidPositionSize();
         require(
             _checkLeverage(size, collateral),
             "Position exceeds maxLeverage"
@@ -215,7 +215,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
     function setLiquidationFeePercentage(
         uint256 _feePercentage
     ) external onlyOwner {
-        require(_feePercentage < 100, "Fee is too high");
+        require(_feePercentage <= 100, "Fee is too high");
         liquidationFeePercentage = _feePercentage;
     }
 }
