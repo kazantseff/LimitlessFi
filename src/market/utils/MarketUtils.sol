@@ -110,10 +110,10 @@ contract MarketUtils is MarketStorage {
         // Decrease open interest
         if (_position.isLong) {
             openInterstInUnderlyingLong -= removeSize;
-            openInterestUSDLong += removeSize * price;
+            openInterestUSDLong -= (removeSize * price) / SCALE_FACTOR;
         } else {
             openInterstInUnderlyingShort -= removeSize;
-            openInterestUSDShort -= removeSize * price;
+            openInterestUSDShort -= (removeSize * price) / SCALE_FACTOR;
         }
 
         // If size is decreased to 0, tclose the position
