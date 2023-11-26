@@ -157,16 +157,26 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
                 removeSize,
                 false
             );
+            userPosition[msg.sender] = position;
+            // If after call to removeSize collateral is 0, it means the position is already closed, stop execution
+            if (position.collateral == 0 && position.size == 0) {
+                emit PositionClosed(msg.sender);
+                return;
+            }
         }
 
         if (removeCollateral > 0) {
             position.collateral -= removeCollateral;
             ERC20(collateralToken).safeTransfer(msg.sender, removeCollateral);
-            if (!_checkLeverage(position.size, position.collateral))
+            // To avoid divison by zero in _checkLeverage, handle the case where collateral is decreased to 0
+            if (position.collateral == 0) {
                 revert PositionExceedsMaxLeverage();
+            } else {
+                if (!_checkLeverage(position.size, position.collateral))
+                    revert PositionExceedsMaxLeverage();
+            }
+            userPosition[msg.sender] = position;
         }
-
-        userPosition[msg.sender] = position;
 
         emit PositionDecreased(msg.sender, removeSize, removeCollateral);
     }

@@ -32,6 +32,8 @@ contract MarketStorage {
         uint256 indexed removeCollateral
     );
 
+    event PositionClosed(address indexed user);
+
     event PositionLiquidated(address indexed user);
 
     struct Position {
