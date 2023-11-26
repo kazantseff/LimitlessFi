@@ -89,12 +89,12 @@ contract MarketUtils is MarketStorage {
         uint256 fee;
         uint256 price = oracle.getPrice().toUint256();
         int256 pnl = _calculateUserPnl(_user);
-        // #TODO: Check precision loss
         int256 realizedPnl = (pnl * removeSize.toInt256()) /
             _position.size.toInt256();
         // If realizedPnl is negative, deduct it from the collateral
         if (realizedPnl < 0) {
-            uint256 absolutePnl = realizedPnl.abs();
+            // Collateral is in 8 decimals of precisions
+            uint256 absolutePnl = realizedPnl.abs() / 1e10;
             // No need to check leverage as the amount of collateral decreased is proportional to amount of size decreased
             _position.collateral -= absolutePnl;
         } else {
