@@ -182,12 +182,12 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
     }
 
     /** @notice Function to liquidate a user, i.e reduce the size of the position to 0
-     * @param user User to liquidity
+     * @param user User to liquidate
      */
     function liquidate(address user) external {
         Position memory position = userPosition[user];
         uint256 liquidationFee;
-        if (_checkLeverage(position.size, position.collateral))
+        if (!_isLiquidatable(user))
             revert PositionNotLiquidatable();
         position = _accrueInterest(position);
 

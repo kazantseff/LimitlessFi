@@ -74,6 +74,20 @@ contract MarketUtils is MarketStorage {
         }
     }
 
+    function _isLiquidatable(address user) internal view returns (bool) {
+        Position memory position = userPosition[user];
+        int256 userPnl = _calculateUserPnl(user);
+        // If pnl is negative, deduct it from the collateral and check leverage
+        if (userPnl < 0) {
+            position.collateral -= userPnl.abs();
+            return !_checkLeverage(position.size, position.collateral);
+            // We still need to check leverage even when we adding to collateral, as the profit might not cover previous losses
+        } else {
+            position.collateral += userPnl.toUint256();
+            return !_checkLeverage(position.size, position.collateral);
+        }
+    }
+
     /** @notice Function to remove size of the position and realize the pnl
      * @param _position The position to operate on
      * @param _user User whose position is being decreased
