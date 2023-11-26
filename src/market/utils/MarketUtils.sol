@@ -28,7 +28,7 @@ contract MarketUtils is MarketStorage {
             collateral *
                 1e10 /* collateral is usdc so we need to scale up decimals */
         );
-        return leverage / 1e18;
+        return leverage / SCALE_FACTOR;
     }
 
     function _checkLeverage(
@@ -45,11 +45,12 @@ contract MarketUtils is MarketStorage {
     function _calculateProtocolPnl() external view returns (int256) {
         int256 price = oracle.getPrice();
         //Calculating pnl of longs
-        int256 pnlLongs = (price * openInterstInUnderlyingLong.toInt256()) -
-            openInterestUSDLong.toInt256();
+        int256 pnlLongs = ((price * openInterstInUnderlyingLong.toInt256()) /
+            int256(SCALE_FACTOR)) - openInterestUSDLong.toInt256();
         // Calculating pnl of shorts
         int256 pnlShorts = openInterestUSDShort.toInt256() -
-            (price * openInterstInUnderlyingShort.toInt256());
+            ((price * openInterstInUnderlyingShort.toInt256()) /
+                int256(SCALE_FACTOR));
 
         return pnlLongs + pnlShorts;
     }
@@ -58,9 +59,10 @@ contract MarketUtils is MarketStorage {
         // It depends if the position is long or short
         Position memory position = userPosition[_user];
         int256 price = oracle.getPrice();
-        int256 currentValue = price * position.size.toInt256();
-        int256 entryValue = position.averagePrice.toInt256() *
-            position.size.toInt256();
+        int256 currentValue = (price * position.size.toInt256()) /
+            int256(SCALE_FACTOR);
+        int256 entryValue = (position.averagePrice.toInt256() *
+            position.size.toInt256()) / int256(SCALE_FACTOR);
         if (position.isLong) {
             // For long
             // CurrentValue - EntryValue
@@ -99,7 +101,8 @@ contract MarketUtils is MarketStorage {
             ERC20(collateralToken).safeTransfer(
                 msg.sender,
                 // Conversion here is safe, as realizedPnl is greater than 0
-                realizedPnl.toUint256()
+                // realizedPnl is in 18 decimals of precision, while USDC is in 8
+                realizedPnl.toUint256() / 1e10
             );
         }
         _position.size -= removeSize;
