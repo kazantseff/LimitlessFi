@@ -14,6 +14,7 @@ contract Test is ForgeTest {
     address internal aliceDepositor = makeAddr("aliceDepositor");
     address internal bobDepositor = makeAddr("bobDepositor");
     address internal trader = makeAddr("trader");
+    address internal liquidator = makeAddr("liquidator");
     MockERC20 internal usdc;
     MockV3Aggregator internal priceOracle;
     LimitlessVault internal vault;

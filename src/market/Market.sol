@@ -10,6 +10,8 @@ import "@openzeppelin/contracts/utils/math/SignedMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {LimitlessVault} from "../vault/Vault.sol";
 
+// #TODO: It might be a good idea to make collateral to be in 18 decimals of precisions,
+// so the contract will only have to scale it once on deposit
 contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
     using SafeCast for int;
     using SafeMath for uint;

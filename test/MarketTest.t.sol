@@ -278,4 +278,36 @@ contract MarketTest is Test {
         vm.expectRevert(PositionExceedsMaxLeverage.selector);
         market.decreasePosition(0, 1000e8);
     }
+
+    function testLiquidateOnlyAllowsLiquidatingUndercollateralizedPositions()
+        public
+    {
+        vm.prank(trader);
+        market.openPosition(2e18, 1000e8, true);
+        priceOracle.updateAnswer(2100e8);
+        vm.expectRevert(PositionNotLiquidatable.selector);
+        vm.prank(liquidator);
+        market.liquidate(trader);
+    }
+
+    function testLiquidateDeductsTheLiquidatonFeeFromUserAndSendsItToLiqudiator()
+        public
+    {
+        vm.prank(trader);
+        market.openPosition(2e18, 1000e8, true);
+        uint256 balanceTrader = usdc.balanceOf(trader);
+        uint256 balanceLiquidator = usdc.balanceOf(liquidator);
+        // The liquidatonFee that should be sent to liquidator is 0.01 * collateral
+        // With price decreasing to 1600 the leverage will be 16
+        // LiquidatonFee should be 2 USDC
+        priceOracle.updateAnswer(1600e8);
+        vm.prank(liquidator);
+        market.liquidate(trader);
+        uint256 newBalanceLiquidator = usdc.balanceOf(liquidator);
+        uint256 newBalanceTrader = usdc.balanceOf(trader);
+        // Liquidator receive 2 usdc as fee
+        assertEq(newBalanceLiquidator, balanceLiquidator + 2e8);
+        // trader got (1000 - 800 - 2) usdc of collateral
+        assertEq(newBalanceTrader, balanceTrader + 198e8);
+    }
 }
