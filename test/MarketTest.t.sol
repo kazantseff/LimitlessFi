@@ -310,4 +310,20 @@ contract MarketTest is Test {
         // trader got (1000 - 800 - 2) usdc of collateral
         assertEq(newBalanceTrader, balanceTrader + 198e8);
     }
+
+    function testAccrueInterestForAPosition() public {
+        _depositInVault(bobDepositor, 20000e8);
+        vm.prank(trader);
+        market.openPosition(10e18, 5000e8, true);
+        (uint256 collateral, , , , ) = market.userPosition(trader);
+        uint256 fees = vault.borrowingFees();
+        skip(31_536_000);
+        vm.prank(trader);
+        market.increasePosition(1e18, 0);
+        (uint256 newCollateral, , , , ) = market.userPosition(trader);
+        uint256 newFees = vault.borrowingFees();
+        // There is some precisions loss happening, but overall this is almost 10% over the course of the year, which is correct
+        assertEq(newCollateral, collateral - 199999999976);
+        assertEq(newFees, fees + 199999999976);
+    }
 }

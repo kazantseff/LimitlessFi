@@ -168,7 +168,7 @@ contract MarketUtils is MarketStorage {
         return borrowingFee;
     }
 
-    /** @notice Function that accrues interest on position and transfers fees to the vault */
+    /** @notice Function that accrues interest on position based on the size and transfers fees to the vault */
     function _accrueInterest(
         Position memory _position
     ) internal returns (Position memory) {
