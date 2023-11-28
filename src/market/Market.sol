@@ -187,8 +187,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
     function liquidate(address user) external {
         Position memory position = userPosition[user];
         uint256 liquidationFee;
-        if (!_isLiquidatable(user))
-            revert PositionNotLiquidatable();
+        if (!_isLiquidatable(user)) revert PositionNotLiquidatable();
         position = _accrueInterest(position);
 
         uint256 removeSize = position.size;

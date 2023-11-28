@@ -36,7 +36,7 @@ contract MarketUtils is MarketStorage {
         uint256 collateral
     ) internal view returns (bool) {
         uint256 leverage = _calculateLeverage(size, collateral);
-        return leverage < maxLeverage;
+        return leverage <= maxLeverage;
     }
 
     /** @notice Calculates total Pnl of the protocol
@@ -55,7 +55,7 @@ contract MarketUtils is MarketStorage {
         return pnlLongs + pnlShorts;
     }
 
-    function _calculateUserPnl(address _user) internal view returns (int256) {
+    function _calculateUserPnl(address _user) public view returns (int256) {
         // It depends if the position is long or short
         Position memory position = userPosition[_user];
         int256 price = oracle.getPrice();
@@ -79,11 +79,11 @@ contract MarketUtils is MarketStorage {
         int256 userPnl = _calculateUserPnl(user);
         // If pnl is negative, deduct it from the collateral and check leverage
         if (userPnl < 0) {
-            position.collateral -= userPnl.abs();
+            position.collateral -= userPnl.abs() / 1e10;
             return !_checkLeverage(position.size, position.collateral);
             // We still need to check leverage even when we adding to collateral, as the profit might not cover previous losses
         } else {
-            position.collateral += userPnl.toUint256();
+            position.collateral += userPnl.toUint256() / 1e10;
             return !_checkLeverage(position.size, position.collateral);
         }
     }
@@ -108,9 +108,9 @@ contract MarketUtils is MarketStorage {
         // If realizedPnl is negative, deduct it from the collateral
         if (realizedPnl < 0) {
             // Collateral is in 8 decimals of precisions
-            uint256 absolutePnl = realizedPnl.abs() / 1e10;
+            uint256 absolutePnl = realizedPnl.abs();
             // No need to check leverage as the amount of collateral decreased is proportional to amount of size decreased
-            _position.collateral -= absolutePnl;
+            _position.collateral -= absolutePnl / 1e10;
         } else {
             ERC20(collateralToken).safeTransfer(
                 msg.sender,
@@ -130,17 +130,14 @@ contract MarketUtils is MarketStorage {
             openInterestUSDShort -= (removeSize * price) / SCALE_FACTOR;
         }
 
-        // If size is decreased to 0, tclose the position
+        // If size is decreased to 0, close the position
         if (_position.size == 0) {
             // Deduct the liquidation fee if needed
             if (isLiquidating) {
                 fee = _getLiquidationFee(_position.collateral);
                 _position.collateral -= fee;
             }
-            ERC20(collateralToken).safeTransfer(
-                msg.sender,
-                _position.collateral
-            );
+            ERC20(collateralToken).safeTransfer(_user, _position.collateral);
             _position.collateral = 0;
         }
 
@@ -151,7 +148,7 @@ contract MarketUtils is MarketStorage {
     function _getLiquidationFee(
         uint256 _collateral
     ) internal view returns (uint256) {
-        return (_collateral * liquidationFeePercentage).div(MAXIMUM_BPS);
+        return (_collateral * liquidationFeePercentage) / (MAXIMUM_BPS);
     }
 
     /** @notice Calculates interest on the position of the trader until block.timestamp
@@ -182,9 +179,9 @@ contract MarketUtils is MarketStorage {
         );
         uint256 price = oracle.getPrice().toUint256();
         // As borrowingFee is in indexToken, there is a need to convert it to USDC
-        uint256 borrowingFeesInCollateralScaled = (borrowingFee * price) / 1e10;
+        uint256 borrowingFeesInCollateralScaled = (borrowingFee * price) / 1e28; // 1e18 * 1e18 = 1e36    1e36 / 1e28 = 1e8
         _position.lastTimestampAccrued = block.timestamp;
-        _position.collateral -= borrowingFeesInCollateralScaled * 1e10;
+        _position.collateral -= borrowingFeesInCollateralScaled;
         // Approve vault
         ERC20(collateralToken).approve(
             address(vault),
