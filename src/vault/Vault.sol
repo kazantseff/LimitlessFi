@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+/** @notice Solmate SafeTransferLib, ERC4626, ERC20 */
+import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ERC4626} from "lib/solmate/src/mixins/ERC4626.sol";
-import "solmate/tokens/ERC20.sol";
-import "solmate/utils/SafeTransferLib.sol";
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
+import {ERC20} from "solmate/tokens/ERC20.sol";
+
+/** @notice OpenZeppelin Utils */
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
+/** @notice LimitlessMarket */
 import {LimitlessMarket} from "../market/Market.sol";
 
 contract LimitlessVault is ERC4626, Ownable {
@@ -15,16 +20,9 @@ contract LimitlessVault is ERC4626, Ownable {
     using SafeCast for int;
     using Math for uint;
 
-    event UtilizationPercentageSet(uint256 indexed utilizationPercentage);
-    event MarketSet(address indexed market);
-    event BorrowingFeesDeposited(uint256 indexed amount);
-    event BorrowingFeesAccrued(address indexed user, uint256 indexed amount);
-    event BorrowingFeesClaimed(address indexed user, uint256 indexed amount);
-
     LimitlessMarket private market;
     uint256 internal constant SCALE_FACTOR = 1e18;
     uint256 public maxUtilizationPercentage;
-    // The amount of underlying deposited
     uint256 public totalUnderlyingDeposited;
     uint256 public totalShares;
     uint256 public borrowingFees;
@@ -36,22 +34,32 @@ contract LimitlessVault is ERC4626, Ownable {
     }
     mapping(address => userPosition) public userToPosition;
 
-    // Underlying will be USDC
+    event UtilizationPercentageSet(uint256 indexed utilizationPercentage);
+    event MarketSet(address indexed market);
+    event BorrowingFeesDeposited(uint256 indexed amount);
+    event BorrowingFeesAccrued(address indexed user, uint256 indexed amount);
+    event BorrowingFeesClaimed(address indexed user, uint256 indexed amount);
+
     constructor(
         ERC20 _underlying,
         address _owner
     ) ERC4626(_underlying, "LimitlessToken", "LMTLS") Ownable(_owner) {}
 
-    /** @notice Returns the amount of underlying accounting for the protocol PNL */
+    /** @notice Returns the amount of underlying accounting for traders PnL
+     * @dev If traders' PnL is positive => deduct it from balance of vault
+     * @dev If traders' PnL is negative => add it to balance of vault
+     */
     function totalAssets() public view override returns (uint256) {
         int256 balanceOfVault = totalUnderlyingDeposited.toInt256();
-        // Pnl can be negative, but totalAssets should be at least 0
-        int256 _totalAssets = balanceOfVault - market._calculateProtocolPnl();
-        // assert(_totalAssets > 0);
+        int256 _totalAssets = balanceOfVault - market._calculateTradersPnl();
         return _totalAssets.toUint256();
     }
 
-    /** @notice Function to deposit LP */
+    /** @notice Deposits underlying token into vault
+     * @param assets Amount of underlying to deposit
+     * @param receiver Receiver of shares
+     * @return shares
+     */
     function deposit(
         uint256 assets,
         address receiver
@@ -67,7 +75,12 @@ contract LimitlessVault is ERC4626, Ownable {
         totalShares += shares;
     }
 
-    /** @notice Function to redeem LP */
+    /** @notice Function to redeem shares
+     * @param shares Amount of shares to redeem
+     * @param receiver Receiver of underying redeemed
+     * @param owner Owner of shares
+     * @return assets Underlying assets
+     */
     function redeem(
         uint256 shares,
         address receiver,
@@ -80,14 +93,14 @@ contract LimitlessVault is ERC4626, Ownable {
         userToPosition[owner].userShares -= shares;
         totalShares -= shares;
 
-        // This check enusures that after withdrawal (totalOpenInterest < (depositedLiquidity * utilizationPercentage))
+        // This check ensures that after withdrawal totalOpenInterest is less than max utilization
         require(
             market._ensureLiquidityReserves(),
             "Cannot withdraw liquidity reserved for positions"
         );
     }
 
-    /** @notice Function to accept borrowing fees from a market */
+    /** @notice Accepts borrowing fees from market */
     function depositBorrowingFees(uint256 amount) external {
         require(msg.sender == address(market), "Caller is not a market");
         borrowingFees += amount;
@@ -96,10 +109,11 @@ contract LimitlessVault is ERC4626, Ownable {
         emit BorrowingFeesDeposited(amount);
     }
 
-    /** @notice Function to accrue fees to a user
-     * Calculates the amount to accrue based on time spent in market and the pro rata share of the pool
+    /** @notice Accrues fees to a user
+     * @notice Calculates the amount to accrue based on time spent in market and the pro rata share of the pool
      */
     // #TODO: Doee not work correctly, requires fix
+    // @audit Maybe use some dividendPerShare variable
     function accrueFees(address user) public {
         userPosition memory position = userToPosition[user];
         uint256 deltaTime = block.timestamp - position.lastAccruedTimestamp;
@@ -119,6 +133,7 @@ contract LimitlessVault is ERC4626, Ownable {
         }
     }
 
+    /** @notice Function to claim fees */
     function claimBorrowingFees() external {
         userPosition memory position = userToPosition[msg.sender];
         uint256 claimAmount = position.userFeesToClaim;
@@ -130,7 +145,9 @@ contract LimitlessVault is ERC4626, Ownable {
         emit BorrowingFeesClaimed(msg.sender, claimAmount);
     }
 
-    // Denominated in BPS
+    // #TODO: Should implement maxMint & maxDeposit
+
+    /** @dev Utilization percentage is denominated in BPS */
     function setUtilizationPercentage(
         uint256 utilizationRate
     ) external onlyOwner {

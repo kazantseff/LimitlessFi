@@ -1,12 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "solmate/utils/SafeTransferLib.sol";
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts/utils/math/SignedMath.sol";
-import "../../lib/SafeMath.sol";
-import "solmate/tokens/ERC20.sol";
+/** @notice Math libraries */
+import {SignedMath} from "@openzeppelin/contracts/utils/math/SignedMath.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeMath} from "../../lib/SafeMath.sol";
+
+/** @notice Solmate ERC20, SafeTransferLib */
+import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
+import {ERC20} from "solmate/tokens/ERC20.sol";
+
+/** @notice OpenZeppelin Utils */
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+
+/** @notice Storage contract of market */
 import "../MarketStorage.sol";
 
 contract MarketUtils is MarketStorage {
@@ -17,20 +24,48 @@ contract MarketUtils is MarketStorage {
     using SignedMath for int;
     using SafeTransferLib for ERC20;
 
+    /** @notice Converts a uint256 from one fixed point decimal basis to another
+     * @param amountToConvert The amount being converted
+     * @param decimalsFrom The fixed decimals basis of amountToConvert
+     * @param decimalsTo The fixed decimal basis of the returned convertedAmount
+     * @return convertedAmount The amount after conversion
+     */
+    function _convertDecimals(
+        uint8 decimalsFrom,
+        uint8 decimalsTo,
+        uint256 amountToConvert
+    ) internal pure returns (uint256 convertedAmount) {
+        if (decimalsFrom == decimalsTo) {
+            convertedAmount = amountToConvert;
+        } else if (decimalsFrom < decimalsTo) {
+            uint256 shift = 10 ** (uint256(decimalsTo - decimalsFrom));
+            convertedAmount = amountToConvert * shift;
+        } else {
+            uint256 shift = 10 ** (uint256(decimalsFrom - decimalsTo));
+            convertedAmount = amountToConvert / shift;
+        }
+    }
+
+    /** @notice Calculates leverage of the position with given size and collateral
+     * @param size The size of the position
+     * @param collateral The collateral of the position
+     * @return Leverage of the position
+     */
     function _calculateLeverage(
         uint256 size,
         uint256 collateral
     ) internal view returns (uint256) {
         // Get the price from oracle
         int256 price = oracle.getPrice();
-        uint256 leverage = price.toUint256().mulDiv(
-            size,
-            collateral *
-                1e10 /* collateral is usdc so we need to scale up decimals */
-        );
+        uint256 leverage = price.toUint256().mulDiv(size, collateral);
         return leverage / SCALE_FACTOR;
     }
 
+    /** @notice Checks if leverage of the position exceeds max allowed leverage
+     * @param size The size of the position
+     * @param collateral The size of the collateral
+     * @return True if position does not exceed maxLeverage and False if position exceeds maxLeverage
+     */
     function _checkLeverage(
         uint256 size,
         uint256 collateral
@@ -39,60 +74,61 @@ contract MarketUtils is MarketStorage {
         return leverage <= maxLeverage;
     }
 
-    /** @notice Calculates total Pnl of the protocol
-     * @return Will return positive value if the traders are in profit
+    /** @notice Calculates total PnL of all traders
+     * @return PnL Positive if traders are making money or negative if traders are losing money
      */
-    function _calculateProtocolPnl() external view returns (int256) {
+    function _calculateTradersPnl() external view returns (int256) {
         int256 price = oracle.getPrice();
-        //Calculating pnl of longs
         int256 pnlLongs = ((price * openInterstInUnderlyingLong.toInt256()) /
             int256(SCALE_FACTOR)) - openInterestUSDLong.toInt256();
-        // Calculating pnl of shorts
         int256 pnlShorts = openInterestUSDShort.toInt256() -
             ((price * openInterstInUnderlyingShort.toInt256()) /
                 int256(SCALE_FACTOR));
-
         return pnlLongs + pnlShorts;
     }
 
+    /** @notice Calculates user PnL
+     * @param _user User whose profit to calculate
+     * @return PnL Positive if user is making money or negative if user is losing money
+     */
     function _calculateUserPnl(address _user) public view returns (int256) {
-        // It depends if the position is long or short
         Position memory position = userPosition[_user];
+
         int256 price = oracle.getPrice();
         int256 currentValue = (price * position.size.toInt256()) /
             int256(SCALE_FACTOR);
         int256 entryValue = (position.averagePrice.toInt256() *
             position.size.toInt256()) / int256(SCALE_FACTOR);
+
         if (position.isLong) {
-            // For long
-            // CurrentValue - EntryValue
             return currentValue - entryValue;
         } else {
-            // For short
-            // EntryValue - CurrentValue
             return entryValue - currentValue;
         }
     }
 
+    /** @notice Determines if a user can be liquidated
+     * @param user User whose positions is being checked
+     * @return True if a user can be liquidated, false otherwise
+     */
     function _isLiquidatable(address user) internal view returns (bool) {
         Position memory position = userPosition[user];
         int256 userPnl = _calculateUserPnl(user);
-        // If pnl is negative, deduct it from the collateral and check leverage
+
         if (userPnl < 0) {
-            position.collateral -= userPnl.abs() / 1e10;
+            position.collateral -= userPnl.abs();
             return !_checkLeverage(position.size, position.collateral);
-            // We still need to check leverage even when we adding to collateral, as the profit might not cover previous losses
         } else {
-            position.collateral += userPnl.toUint256() / 1e10;
+            position.collateral += userPnl.toUint256();
             return !_checkLeverage(position.size, position.collateral);
         }
     }
 
-    /** @notice Function to remove size of the position and realize the pnl
-     * @param _position The position to operate on
+    /** @notice Removes size of the position and realizes PnL
+     * @param _position Position to operate on
      * @param _user User whose position is being decreased
-     * @param removeSize the amount of size to remove
-     * @param isLiquidating flag to see if this is the liquidation
+     * @param removeSize Amount of size to remove
+     * @param isLiquidating Flag to see if this is liquidation
      */
     function _removeSize(
         Position memory _position,
@@ -106,18 +142,22 @@ contract MarketUtils is MarketStorage {
         int256 realizedPnl = (pnl * removeSize.toInt256()) /
             _position.size.toInt256();
         // If realizedPnl is negative, deduct it from the collateral
+        // @audit-issue When realizing PNL it should go to LP's?
+        // @audit-issue It's definetely should be accounted for somehow, rn it's unaccounted for
         if (realizedPnl < 0) {
             // Collateral is in 8 decimals of precisions
             uint256 absolutePnl = realizedPnl.abs();
             // No need to check leverage as the amount of collateral decreased is proportional to amount of size decreased
-            _position.collateral -= absolutePnl / 1e10;
+            _position.collateral -= absolutePnl;
         } else {
-            ERC20(collateralToken).safeTransfer(
-                msg.sender,
-                // Conversion here is safe, as realizedPnl is greater than 0
-                // realizedPnl is in 18 decimals of precision, while USDC is in 8
-                realizedPnl.toUint256() / 1e10
+            // @audit-issue Here also, the transfer should be from Vault, as it's where the LP's money are sitting
+            uint256 scaledPnl = _convertDecimals(
+                18,
+                ERC20(collateralToken).decimals(),
+                realizedPnl.toUint256()
             );
+
+            ERC20(collateralToken).safeTransfer(_user, scaledPnl);
         }
         _position.size -= removeSize;
 
@@ -137,14 +177,22 @@ contract MarketUtils is MarketStorage {
                 fee = _getLiquidationFee(_position.collateral);
                 _position.collateral -= fee;
             }
-            ERC20(collateralToken).safeTransfer(_user, _position.collateral);
+            uint256 scaledCollateral = _convertDecimals(
+                18,
+                ERC20(collateralToken).decimals(),
+                _position.collateral
+            );
+            ERC20(collateralToken).safeTransfer(_user, scaledCollateral);
             _position.collateral = 0;
         }
 
         return (_position, fee);
     }
 
-    /** @notice Function to calculate the liquidation fee */
+    /** @notice Calculates the liquidation fee
+     * @param _collateral Collateral of the position
+     * @return Liquidation fee
+     */
     function _getLiquidationFee(
         uint256 _collateral
     ) internal view returns (uint256) {
@@ -152,66 +200,78 @@ contract MarketUtils is MarketStorage {
     }
 
     /** @notice Calculates interest on the position of the trader until block.timestamp
-     * @return borrowingFee in index token (ETH)
+     * @dev borrowingFee = positionSize * secondsSincePositionLastUpdate * feesPerSharePerSecond
+     * @dev Since feesPerSharePerSecond is scaled with SCALE_FACTORT, we need to divied final result by SCALE_FACTOR
+     * @param size Size of the position
+     * @param lastAccruedTimeStamp Timestamp of last accrual of the interest
+     * @return borrowingFee in index token
      */
     function _calculateInterest(
         uint256 size,
         uint256 lastAccruedTimeStamp
     ) internal view returns (uint256) {
-        // BorrowingFee = positionSize * secondsSincePositionUpdated * feesPerSharePerSecond
-        // feePerSharePerSecond = 1 / 315_360_000
         uint256 deltaTime = block.timestamp - lastAccruedTimeStamp;
-        // Because feePerSharePerSecond was multiplied by 1e18, we need to divide final result by 1e18
         uint256 borrowingFee = (size *
             deltaTime *
             _getBorrowingPerSharePerSecond()) / SCALE_FACTOR;
         return borrowingFee;
     }
 
-    /** @notice Function that accrues interest on position based on the size and transfers fees to the vault */
+    /** @notice Accrues interest on position based on the size
+     * @notice Transfers fee to the Vault
+     * @param _position Position to accrue interest on
+     * @return Position with updated collateral
+     */
     function _accrueInterest(
         Position memory _position
     ) internal returns (Position memory) {
-        // calculate outstanding fees of the position in indexToken
         uint256 borrowingFee = _calculateInterest(
             _position.size,
             _position.lastTimestampAccrued
         );
         uint256 price = oracle.getPrice().toUint256();
-        // As borrowingFee is in indexToken, there is a need to convert it to USDC
-        uint256 borrowingFeesInCollateralScaled = (borrowingFee * price) / 1e28; // 1e18 * 1e18 = 1e36    1e36 / 1e28 = 1e8
-        _position.lastTimestampAccrued = block.timestamp;
-        _position.collateral -= borrowingFeesInCollateralScaled;
-        // Approve vault
-        ERC20(collateralToken).approve(
-            address(vault),
-            borrowingFeesInCollateralScaled
+        uint256 borrowingFeesInCollateral = (borrowingFee * price) /
+            SCALE_FACTOR;
+        uint256 borrowingFeesScaled = _convertDecimals(
+            18,
+            ERC20(collateralToken).decimals(),
+            borrowingFeesInCollateral
         );
-        // Deposit fees into vault
-        vault.depositBorrowingFees(borrowingFeesInCollateralScaled);
+
+        _position.lastTimestampAccrued = block.timestamp;
+        _position.collateral -= borrowingFeesInCollateral;
+
+        ERC20(collateralToken).approve(address(vault), borrowingFeesScaled);
+        vault.depositBorrowingFees(borrowingFeesScaled);
         return _position;
     }
 
-    /** @notice Return borrowingFeePerSharePerSecond */
-    // feePerSharePerSecond is 1 / 315_360_000
-    // So we multiply by 1e18 => 1e18 / 315_360_000
+    /** @notice Return borrowingFeePerSharePerSecond
+     * @notice Gives approximately 10% interest over the course of the year
+     * @return 1e18 / 315_360_000
+     */
     function _getBorrowingPerSharePerSecond() internal pure returns (uint256) {
-        // Approximately 3.17e9
-        // It give 10% rate per year
         return SCALE_FACTOR / (SECONDS_IN_YEAR * 10);
     }
 
-    // Liquidity reserves are calculated (depositedLiquidity * maxUtilizationPercentage)
+    /** @notice Calculates liquidity reserves of the protocol
+     * @return Liquidity reserves in 18 decimals of precision
+     */
     function _calculateLiquidityReserves() internal view returns (uint256) {
-        // Liquidity is in 1e8 precisions, need to scale it up
         uint256 depositedLiquidity = vault.totalUnderlyingDeposited();
-        // utilizationPercentage is denominated in BPS
         uint256 reserves = (depositedLiquidity *
             vault.maxUtilizationPercentage()) / MAXIMUM_BPS;
-        return reserves * 1e10;
+        uint256 scaledReserves = _convertDecimals(
+            ERC20(collateralToken).decimals(),
+            18,
+            reserves
+        );
+        return scaledReserves;
     }
 
-    // shortOpenInterstUSD + (longOpenInterestTokens * price) < (depositedLiquidity * utilizationPercentage)
+    /** @notice Checks if open interest does not exceed liquidity reserves
+     * @return True if it does not exceeds reserves, false otherwise
+     */
     function _ensureLiquidityReserves() public view returns (bool) {
         uint256 price = oracle.getPrice().toUint256();
         if (

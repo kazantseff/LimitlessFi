@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "./shared/Test.sol";
+import {console2} from "forge-std/Test.sol";
 
 contract VaultTest is Test {
     function setUp() public {

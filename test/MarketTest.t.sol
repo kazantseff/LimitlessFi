@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Test} from "./shared/Test.sol";
 import "../src/market/MarketStorage.sol";
+import {console2} from "forge-std/Test.sol";
 
 // #TODO: Test accrueInterest
 contract MarketTest is Test {
@@ -18,9 +19,9 @@ contract MarketTest is Test {
         vm.stopPrank();
 
         // Deposit 10_000 usdc into vault, so there is liquidity for borrowing
-        _depositInVault(aliceDepositor, 10000e8);
+        _depositInVault(aliceDepositor, 10000e6);
         // Mint trader 10_000 USDC
-        usdc.mint(trader, 10000e8);
+        usdc.mint(trader, 10000e6);
         // Approve traders usdc to market
         vm.prank(trader);
         usdc.approve(address(market), type(uint256).max);
@@ -33,7 +34,7 @@ contract MarketTest is Test {
         asAccount(trader)
     {
         vm.expectRevert(InvalidPositionSize.selector);
-        market.openPosition(5e16, 500e8, true);
+        market.openPosition(5e16, 500e6, true);
     }
 
     function testOpenPositionRevertsIfExceedsMaxLeverage()
@@ -41,23 +42,23 @@ contract MarketTest is Test {
         asAccount(trader)
     {
         vm.expectRevert(PositionExceedsMaxLeverage.selector);
-        market.openPosition(1e18, 100e8, true);
+        market.openPosition(1e18, 100e6, true);
     }
 
     function testOpenPositionRevertsIfPositionAlreadyOpen()
         public
         asAccount(trader)
     {
-        market.openPosition(1e18, 1000e8, true);
+        market.openPosition(1e18, 1000e6, true);
         vm.expectRevert("Position is already open");
-        market.openPosition(1e18, 1000e8, true);
+        market.openPosition(1e18, 1000e6, true);
     }
 
     function testOpenPositionIncreasesOpenInterestLong()
         public
         asAccount(trader)
     {
-        market.openPosition(1e18, 1000e8, true);
+        market.openPosition(1e18, 1000e6, true);
         assertEq(2000e18, market.openInterestUSDLong());
         assertEq(1e18, market.openInterstInUnderlyingLong());
     }
@@ -66,13 +67,13 @@ contract MarketTest is Test {
         public
         asAccount(trader)
     {
-        market.openPosition(1e18, 1000e8, false);
+        market.openPosition(1e18, 1000e6, false);
         assertEq(2000e18, market.openInterestUSDShort());
         assertEq(1e18, market.openInterstInUnderlyingShort());
     }
 
     function testOpenPositionSetsPositionCorrectly() public asAccount(trader) {
-        market.openPosition(1e18, 1000e8, true);
+        market.openPosition(1e18, 1000e6, true);
         (
             uint256 collateral,
             uint256 size,
@@ -81,7 +82,7 @@ contract MarketTest is Test {
             uint256 lastTimestampAccrued
         ) = market.userPosition(trader);
 
-        assertEq(collateral, 1000e8);
+        assertEq(collateral, 1000e18);
         assertEq(size, 1e18);
         assertEq(averagePrice, 2000e18);
         assertEq(isLong, true);
@@ -93,10 +94,10 @@ contract MarketTest is Test {
         asAccount(trader)
     {
         uint256 oldMarketBalance = usdc.balanceOf(address(market));
-        assertEq(usdc.balanceOf(trader), 10000e8);
-        market.openPosition(1e18, 1000e8, true);
-        assertEq(usdc.balanceOf(trader), 9000e8);
-        assertEq(usdc.balanceOf(address(market)), oldMarketBalance + 1000e8);
+        assertEq(usdc.balanceOf(trader), 10000e6);
+        market.openPosition(1e18, 1000e6, true);
+        assertEq(usdc.balanceOf(trader), 9000e6);
+        assertEq(usdc.balanceOf(address(market)), oldMarketBalance + 1000e6);
     }
 
     function testOpenPositionRevertsIfNotEnoughLiquidity()
@@ -104,7 +105,7 @@ contract MarketTest is Test {
         asAccount(trader)
     {
         vm.expectRevert(NotEnoughLiquidity.selector);
-        market.openPosition(5e18, 2000e8, true);
+        market.openPosition(5e18, 2000e6, true);
     }
 
     function testIncreasePositionRevertsIfPositionNotOpen()
@@ -112,31 +113,31 @@ contract MarketTest is Test {
         asAccount(trader)
     {
         vm.expectRevert(PositionNotOpen.selector);
-        market.increasePosition(1e18, 1000e8);
+        market.increasePosition(1e18, 1000e6);
     }
 
     function testIncreasePositionIncreasesCollateralAndTransfersItFromUser()
         public
         asAccount(trader)
     {
-        market.openPosition(1e18, 1000e8, true);
+        market.openPosition(1e18, 1000e6, true);
         (uint256 collateral, , , , ) = market.userPosition(trader);
         uint256 oldMarketBalance = usdc.balanceOf(address(market));
         uint256 oldUserBalance = usdc.balanceOf(trader);
-        market.increasePosition(0, 1000e8);
+        market.increasePosition(0, 1000e6);
         (uint256 newCollateral, , , , ) = market.userPosition(trader);
         uint256 newMarketBalance = usdc.balanceOf(address(market));
         uint256 newUserBalance = usdc.balanceOf(trader);
-        assertEq(newCollateral, collateral + 1000e8);
-        assertEq(newMarketBalance, oldMarketBalance + 1000e8);
-        assertEq(newUserBalance, oldUserBalance - 1000e8);
+        assertEq(newCollateral, collateral + 1000e18);
+        assertEq(newMarketBalance, oldMarketBalance + 1000e6);
+        assertEq(newUserBalance, oldUserBalance - 1000e6);
     }
 
     function testIncreasePositionIncreasesSizeAndOpenInterest()
         public
         asAccount(trader)
     {
-        market.openPosition(1e18, 1000e8, true);
+        market.openPosition(1e18, 1000e6, true);
         (, uint256 size, , , ) = market.userPosition(trader);
         uint256 openInterestUnderlying = market.openInterstInUnderlyingLong();
         uint256 openInterestUSD = market.openInterestUSDLong();
@@ -150,14 +151,14 @@ contract MarketTest is Test {
         assertEq(newOpenInterestUSD, openInterestUSD + 2000e18);
     }
 
-    function testIncreasePositionRevertsIfNewPositionExceedsLeverage()
-        public
-        asAccount(trader)
-    {
+    function testIncreasePositionRevertsIfNewPositionExceedsLeverage() public {
+        _depositInVault(bobDepositor, 20000e6);
+        vm.startPrank(trader);
         // 2x leverage
-        market.openPosition(1e18, 1000e8, true);
+        market.openPosition(1e18, 1000e6, true);
         vm.expectRevert(PositionExceedsMaxLeverage.selector);
         market.increasePosition(7e18, 0);
+        vm.stopPrank();
     }
 
     function testIncreasePositionCalculatesAveragePriceCorrectly()
@@ -165,9 +166,9 @@ contract MarketTest is Test {
         asAccount(trader)
     {
         // Open position at price of 2000$
-        market.openPosition(1e18, 1000e8, true);
+        market.openPosition(1e18, 1000e6, true);
         // Now price decreased to 1500$
-        priceOracle.updateAnswer(1500e8);
+        priceOracle.updateAnswer(1500e6);
         // Increasing position by 1 ETH, new average price should be 1750$
         market.increasePosition(1e18, 0);
         (, , uint256 price, , ) = market.userPosition(trader);
@@ -180,10 +181,10 @@ contract MarketTest is Test {
     {
         // In setUp Alice deposited 10_000 USDC, with utilizationPercentage being 80%, only 8000 USDC can be used
         // Openning position of 2ETH with 1000 USDC as collateral, so 3000 USDC is taken from LP
-        market.openPosition(2e18, 1000e8, true);
+        market.openPosition(2e18, 1000e6, true);
         vm.expectRevert(NotEnoughLiquidity.selector);
         // 6000 usdc in interest - 1000 USDC collateral = 5000 USDc taken from LP
-        market.increasePosition(3e18, 1000e8);
+        market.increasePosition(3e18, 1000e6);
     }
 
     function testDecreasePositionRevertsIfPositionNotOpen()
@@ -198,16 +199,16 @@ contract MarketTest is Test {
         public
         asAccount(trader)
     {
-        market.openPosition(2e18, 1000e8, true);
+        market.openPosition(2e18, 1000e6, true);
         uint256 balanceOfTrader = usdc.balanceOf(trader);
         (, uint256 size, , , ) = market.userPosition(trader);
         // 2000 USDC profit with price being 3000 USDC
-        priceOracle.updateAnswer(3000e8);
+        priceOracle.updateAnswer(3000e6);
         // Closing half of the position should realize half of the PNL
         market.decreasePosition(1e18, 0);
         uint256 newBalance = usdc.balanceOf(trader);
         (, uint256 newSize, , , ) = market.userPosition(trader);
-        assertEq(newBalance, balanceOfTrader + 1000e8);
+        assertEq(newBalance, balanceOfTrader + 1000e6);
         assertEq(newSize, size - 1e18);
     }
 
@@ -216,21 +217,21 @@ contract MarketTest is Test {
         asAccount(trader)
     {
         // 4000 USDC in ETH
-        market.openPosition(2e18, 1000e8, true);
+        market.openPosition(2e18, 1000e6, true);
         (uint256 collateral, , , , ) = market.userPosition(trader);
         // 3800 USDC in ETH, profit = -200 USDC
-        priceOracle.updateAnswer(1900e8);
+        priceOracle.updateAnswer(1900e6);
         // Should take 100 USDC from collateral
         market.decreasePosition(1e18, 0);
         (uint256 newCollateral, , , , ) = market.userPosition(trader);
-        assertEq(newCollateral, collateral - 100e8);
+        assertEq(newCollateral, collateral - 100e18);
     }
 
     function testDecreasePositionDecreasesSizeAndOpenInterest()
         public
         asAccount(trader)
     {
-        market.openPosition(2e18, 1000e8, true);
+        market.openPosition(2e18, 1000e6, true);
         uint256 openInterestUnderlying = market.openInterstInUnderlyingLong();
         uint256 openInterestUSD = market.openInterestUSDLong();
         market.decreasePosition(1e18, 0);
@@ -245,7 +246,7 @@ contract MarketTest is Test {
         public
         asAccount(trader)
     {
-        market.openPosition(2e18, 1000e8, true);
+        market.openPosition(2e18, 1000e6, true);
         uint256 balanceTrader = usdc.balanceOf(trader);
         vm.expectEmit(address(market));
         emit PositionClosed(trader);
@@ -253,38 +254,38 @@ contract MarketTest is Test {
         (uint256 newCollateral, , , , ) = market.userPosition(trader);
         uint256 newBalanceTrader = usdc.balanceOf(trader);
         assertEq(newCollateral, 0);
-        assertEq(newBalanceTrader, balanceTrader + 1000e8);
+        assertEq(newBalanceTrader, balanceTrader + 1000e6);
     }
 
     function testDecreasePositionDecreasesCollateralAndSendsItToUser()
         public
         asAccount(trader)
     {
-        market.openPosition(2e18, 1000e8, true);
+        market.openPosition(2e18, 1000e6, true);
         (uint256 collateral, , , , ) = market.userPosition(trader);
         uint256 balanceTrader = usdc.balanceOf(trader);
-        market.decreasePosition(0, 500e8);
+        market.decreasePosition(0, 500e6);
         (uint256 newCollateral, , , , ) = market.userPosition(trader);
         uint256 newBalanceTrader = usdc.balanceOf(trader);
-        assertEq(newCollateral, collateral - 500e8);
-        assertEq(newBalanceTrader, balanceTrader + 500e8);
+        assertEq(newCollateral, collateral - 500e18);
+        assertEq(newBalanceTrader, balanceTrader + 500e6);
     }
 
     function testDecreasePositionDoesNotAllowDecreasingCollateralSuchThatItMakesPositionLiquidatable()
         public
         asAccount(trader)
     {
-        market.openPosition(2e18, 1000e8, true);
+        market.openPosition(2e18, 1000e6, true);
         vm.expectRevert(PositionExceedsMaxLeverage.selector);
-        market.decreasePosition(0, 1000e8);
+        market.decreasePosition(0, 1000e6);
     }
 
     function testLiquidateOnlyAllowsLiquidatingUndercollateralizedPositions()
         public
     {
         vm.prank(trader);
-        market.openPosition(2e18, 1000e8, true);
-        priceOracle.updateAnswer(2100e8);
+        market.openPosition(2e18, 1000e6, true);
+        priceOracle.updateAnswer(2100e6);
         vm.expectRevert(PositionNotLiquidatable.selector);
         vm.prank(liquidator);
         market.liquidate(trader);
@@ -294,36 +295,37 @@ contract MarketTest is Test {
         public
     {
         vm.prank(trader);
-        market.openPosition(2e18, 1000e8, true);
+        market.openPosition(2e18, 1000e6, true);
         uint256 balanceTrader = usdc.balanceOf(trader);
         uint256 balanceLiquidator = usdc.balanceOf(liquidator);
         // The liquidatonFee that should be sent to liquidator is 0.01 * collateral
         // With price decreasing to 1600 the leverage will be 16
         // LiquidatonFee should be 2 USDC
-        priceOracle.updateAnswer(1600e8);
+        priceOracle.updateAnswer(1600e6);
         vm.prank(liquidator);
         market.liquidate(trader);
         uint256 newBalanceLiquidator = usdc.balanceOf(liquidator);
         uint256 newBalanceTrader = usdc.balanceOf(trader);
         // Liquidator receive 2 usdc as fee
-        assertEq(newBalanceLiquidator, balanceLiquidator + 2e8);
+        assertEq(newBalanceLiquidator, balanceLiquidator + 2e6);
         // trader got (1000 - 800 - 2) usdc of collateral
-        assertEq(newBalanceTrader, balanceTrader + 198e8);
+        assertEq(newBalanceTrader, balanceTrader + 198e6);
     }
 
     function testAccrueInterestForAPosition() public {
-        _depositInVault(bobDepositor, 20000e8);
+        _depositInVault(bobDepositor, 20000e6);
         vm.prank(trader);
-        market.openPosition(10e18, 5000e8, true);
+        market.openPosition(10e18, 5000e6, true);
         (uint256 collateral, , , , ) = market.userPosition(trader);
         uint256 fees = vault.borrowingFees();
+
         skip(31_536_000);
         vm.prank(trader);
         market.increasePosition(1e18, 0);
         (uint256 newCollateral, , , , ) = market.userPosition(trader);
         uint256 newFees = vault.borrowingFees();
         // There is some precisions loss happening, but overall this is almost 10% over the course of the year, which is correct
-        assertEq(newCollateral, collateral - 199999999976);
-        assertEq(newFees, fees + 199999999976);
+        assertEq(newCollateral, collateral - 1999999999762560000000);
+        assertEq(newFees, fees + 1999999999);
     }
 }

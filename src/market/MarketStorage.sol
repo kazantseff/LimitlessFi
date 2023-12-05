@@ -52,15 +52,16 @@ contract MarketStorage {
     uint256 internal constant SCALE_FACTOR = 1e18;
     uint256 internal constant MAXIMUM_BPS = 10_000;
     uint256 internal constant SECONDS_IN_YEAR = 31_536_000;
-    // Denominated in BIPS
+    /** @notice Denominated in BPS */
     uint256 internal liquidationFeePercentage;
-    // Max leverage for a position
     uint256 internal maxLeverage;
     uint256 internal minimumPositionSize;
-    // Measured in USD value, incremented by the "size" of the position
+    /** @notice Measured in USD value, incremented by the dollar value of the position */
     uint256 public openInterestUSDLong;
-    // Measured in index tokens, incremented by the "size in index tokens"
+    /** @notice Measured in index tokens, incremented by the "size" in index tokens" */
     uint256 public openInterstInUnderlyingLong;
+    /** @notice Measured in USD value, incremented by the dollar value of the position */
     uint256 public openInterestUSDShort;
+    /** @notice Measured in index tokens, incremented by the "size" in index tokens" */
     uint256 public openInterstInUnderlyingShort;
 }

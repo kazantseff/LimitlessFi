@@ -86,8 +86,8 @@ contract MockV3Aggregator is AggregatorV3Interface {
     }
 
     function getPrice() external view returns (int256) {
-        (, int256 answer, , uint256 updatedAt, ) = latestRoundData();
-        return answer * 1e10;
+        (, int256 answer, , , ) = latestRoundData();
+        return answer * 1e12;
     }
 
     function description() external pure returns (string memory) {
