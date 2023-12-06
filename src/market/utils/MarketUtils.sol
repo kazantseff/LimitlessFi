@@ -151,6 +151,7 @@ contract MarketUtils is MarketStorage {
             _position.collateral -= absolutePnl;
         } else {
             // @audit-issue Here also, the transfer should be from Vault, as it's where the LP's money are sitting
+            // @audit Maybe it's fine, just add a check if there is not enough tokens in market, request additional tokens from vault
             uint256 scaledPnl = _convertDecimals(
                 18,
                 ERC20(collateralToken).decimals(),
@@ -269,16 +270,21 @@ contract MarketUtils is MarketStorage {
         return scaledReserves;
     }
 
+    /** @notice Returns totalOpenInterest in the market */
+    function _totalOpenInterest() public view returns (uint256) {
+        uint256 price = oracle.getPrice().toUint256();
+        return
+            openInterestUSDShort +
+            (openInterstInUnderlyingLong * price) /
+            SCALE_FACTOR;
+    }
+
     /** @notice Checks if open interest does not exceed liquidity reserves
      * @return True if it does not exceeds reserves, false otherwise
      */
     function _ensureLiquidityReserves() public view returns (bool) {
         uint256 price = oracle.getPrice().toUint256();
-        if (
-            openInterestUSDShort +
-                ((openInterstInUnderlyingLong * price) / SCALE_FACTOR) <
-            _calculateLiquidityReserves()
-        ) {
+        if (_totalOpenInterest() < _calculateLiquidityReserves()) {
             return true;
         } else {
             return false;
