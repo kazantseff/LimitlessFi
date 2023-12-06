@@ -49,6 +49,7 @@ contract MarketStorage {
     LimitlessVault public vault;
     EthUsdOracle public oracle;
     address collateralToken;
+    uint8 internal constant BASE_DECIMALS = 18;
     uint256 internal constant SCALE_FACTOR = 1e18;
     uint256 internal constant MAXIMUM_BPS = 10_000;
     uint256 internal constant SECONDS_IN_YEAR = 31_536_000;

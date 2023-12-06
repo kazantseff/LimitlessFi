@@ -24,6 +24,59 @@ contract MarketUtils is MarketStorage {
     using SignedMath for int;
     using SafeTransferLib for ERC20;
 
+    /** @notice Returns totalOpenInterest in the market */
+    function _totalOpenInterest() public view returns (uint256) {
+        uint256 price = oracle.getPrice().toUint256();
+        return
+            openInterestUSDShort +
+            (openInterstInUnderlyingLong * price) /
+            SCALE_FACTOR;
+    }
+
+    /** @notice Checks if open interest does not exceed liquidity reserves
+     * @return True if it does not exceeds reserves, false otherwise
+     */
+    function _ensureLiquidityReserves() public view returns (bool) {
+        if (_totalOpenInterest() < _calculateLiquidityReserves()) {
+            return true;
+        } else {
+            return false;
+        }
+        /** @notice Calculates total PnL of all traders
+         * @return PnL Positive if traders are making money or negative if traders are losing money
+         */
+    }
+
+    function _calculateTradersPnl() external view returns (int256) {
+        int256 price = oracle.getPrice();
+        int256 pnlLongs = ((price * openInterstInUnderlyingLong.toInt256()) /
+            int256(SCALE_FACTOR)) - openInterestUSDLong.toInt256();
+        int256 pnlShorts = openInterestUSDShort.toInt256() -
+            ((price * openInterstInUnderlyingShort.toInt256()) /
+                int256(SCALE_FACTOR));
+        return pnlLongs + pnlShorts;
+    }
+
+    /** @notice Calculates user PnL
+     * @param _user User whose profit to calculate
+     * @return PnL Positive if user is making money or negative if user is losing money
+     */
+    function _calculateUserPnl(address _user) public view returns (int256) {
+        Position memory position = userPosition[_user];
+
+        int256 price = oracle.getPrice();
+        int256 currentValue = (price * position.size.toInt256()) /
+            int256(SCALE_FACTOR);
+        int256 entryValue = (position.averagePrice.toInt256() *
+            position.size.toInt256()) / int256(SCALE_FACTOR);
+
+        if (position.isLong) {
+            return currentValue - entryValue;
+        } else {
+            return entryValue - currentValue;
+        }
+    }
+
     /** @notice Converts a uint256 from one fixed point decimal basis to another
      * @param amountToConvert The amount being converted
      * @param decimalsFrom The fixed decimals basis of amountToConvert
@@ -72,39 +125,6 @@ contract MarketUtils is MarketStorage {
     ) internal view returns (bool) {
         uint256 leverage = _calculateLeverage(size, collateral);
         return leverage <= maxLeverage;
-    }
-
-    /** @notice Calculates total PnL of all traders
-     * @return PnL Positive if traders are making money or negative if traders are losing money
-     */
-    function _calculateTradersPnl() external view returns (int256) {
-        int256 price = oracle.getPrice();
-        int256 pnlLongs = ((price * openInterstInUnderlyingLong.toInt256()) /
-            int256(SCALE_FACTOR)) - openInterestUSDLong.toInt256();
-        int256 pnlShorts = openInterestUSDShort.toInt256() -
-            ((price * openInterstInUnderlyingShort.toInt256()) /
-                int256(SCALE_FACTOR));
-        return pnlLongs + pnlShorts;
-    }
-
-    /** @notice Calculates user PnL
-     * @param _user User whose profit to calculate
-     * @return PnL Positive if user is making money or negative if user is losing money
-     */
-    function _calculateUserPnl(address _user) public view returns (int256) {
-        Position memory position = userPosition[_user];
-
-        int256 price = oracle.getPrice();
-        int256 currentValue = (price * position.size.toInt256()) /
-            int256(SCALE_FACTOR);
-        int256 entryValue = (position.averagePrice.toInt256() *
-            position.size.toInt256()) / int256(SCALE_FACTOR);
-
-        if (position.isLong) {
-            return currentValue - entryValue;
-        } else {
-            return entryValue - currentValue;
-        }
     }
 
     /** @notice Determines if a user can be liquidated
@@ -268,26 +288,5 @@ contract MarketUtils is MarketStorage {
             reserves
         );
         return scaledReserves;
-    }
-
-    /** @notice Returns totalOpenInterest in the market */
-    function _totalOpenInterest() public view returns (uint256) {
-        uint256 price = oracle.getPrice().toUint256();
-        return
-            openInterestUSDShort +
-            (openInterstInUnderlyingLong * price) /
-            SCALE_FACTOR;
-    }
-
-    /** @notice Checks if open interest does not exceed liquidity reserves
-     * @return True if it does not exceeds reserves, false otherwise
-     */
-    function _ensureLiquidityReserves() public view returns (bool) {
-        uint256 price = oracle.getPrice().toUint256();
-        if (_totalOpenInterest() < _calculateLiquidityReserves()) {
-            return true;
-        } else {
-            return false;
-        }
     }
 }

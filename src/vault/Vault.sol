@@ -145,8 +145,6 @@ contract LimitlessVault is ERC4626, Ownable {
         emit BorrowingFeesClaimed(msg.sender, claimAmount);
     }
 
-    // #TODO: Should implement maxMint & maxDeposit
-
     /** @dev Utilization percentage is denominated in BPS */
     function setUtilizationPercentage(
         uint256 utilizationRate

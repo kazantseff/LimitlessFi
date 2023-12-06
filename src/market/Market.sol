@@ -50,7 +50,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
 
         uint256 scaledCollateral = _convertDecimals(
             ERC20(collateralToken).decimals(),
-            18,
+            BASE_DECIMALS,
             collateral
         );
         if (!_checkLeverage(size, scaledCollateral))
@@ -107,7 +107,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
 
             uint256 scaledCollateral = _convertDecimals(
                 ERC20(collateralToken).decimals(),
-                18,
+                BASE_DECIMALS,
                 addCollateral
             );
             position.collateral += scaledCollateral;
@@ -171,7 +171,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         if (removeCollateral > 0) {
             uint256 scaledCollateral = _convertDecimals(
                 ERC20(collateralToken).decimals(),
-                18,
+                BASE_DECIMALS,
                 removeCollateral
             );
             position.collateral -= scaledCollateral;
@@ -207,7 +207,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
             true
         );
         uint256 scaledFee = _convertDecimals(
-            18,
+            BASE_DECIMALS,
             ERC20(collateralToken).decimals(),
             liquidationFee
         );
