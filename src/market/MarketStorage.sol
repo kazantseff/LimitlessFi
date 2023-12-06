@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {EthUsdOracle} from "../oracle/ethUsdOracle.sol";
 import {LimitlessVault} from "../vault/Vault.sol";
+import {ERC20} from "solmate/tokens/ERC20.sol";
 
 error InvalidPositionSize();
 error PositionExceedsMaxLeverage();
@@ -48,7 +49,7 @@ contract MarketStorage {
 
     LimitlessVault public vault;
     EthUsdOracle public oracle;
-    address collateralToken;
+    ERC20 internal collateralToken;
     uint8 internal constant BASE_DECIMALS = 18;
     uint256 internal constant SCALE_FACTOR = 1e18;
     uint256 internal constant MAXIMUM_BPS = 10_000;

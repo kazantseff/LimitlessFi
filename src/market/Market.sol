@@ -31,7 +31,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         address _vault,
         address _owner
     ) Ownable(_owner) {
-        collateralToken = _collateralToken;
+        collateralToken = ERC20(_collateralToken);
         oracle = EthUsdOracle(_oracle);
         vault = LimitlessVault(_vault);
         ERC20(collateralToken).approve(address(vault), type(uint256).max);
@@ -50,7 +50,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         if (size < minimumPositionSize) revert InvalidPositionSize();
 
         uint256 scaledCollateral = _convertDecimals(
-            ERC20(collateralToken).decimals(),
+            collateralToken.decimals(),
             BASE_DECIMALS,
             collateral
         );
@@ -77,11 +77,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
 
         userPosition[msg.sender] = position;
 
-        ERC20(collateralToken).safeTransferFrom(
-            msg.sender,
-            address(this),
-            collateral
-        );
+        collateralToken.safeTransferFrom(msg.sender, address(this), collateral);
         if (!_ensureLiquidityReserves()) revert NotEnoughLiquidity();
 
         emit PositionOpened(msg.sender, size, collateral, isLong);
@@ -100,14 +96,14 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
 
         uint256 price = oracle.getPrice().toUint256();
         if (addCollateral > 0) {
-            ERC20(collateralToken).safeTransferFrom(
+            collateralToken.safeTransferFrom(
                 msg.sender,
                 address(this),
                 addCollateral
             );
 
             uint256 scaledCollateral = _convertDecimals(
-                ERC20(collateralToken).decimals(),
+                collateralToken.decimals(),
                 BASE_DECIMALS,
                 addCollateral
             );
@@ -171,12 +167,12 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
 
         if (removeCollateral > 0) {
             uint256 scaledCollateral = _convertDecimals(
-                ERC20(collateralToken).decimals(),
+                collateralToken.decimals(),
                 BASE_DECIMALS,
                 removeCollateral
             );
             position.collateral -= scaledCollateral;
-            ERC20(collateralToken).safeTransfer(msg.sender, removeCollateral);
+            collateralToken.safeTransfer(msg.sender, removeCollateral);
             // To avoid divison by zero in _checkLeverage, handle the case where collateral is decreased to 0
             if (position.collateral == 0) {
                 revert PositionExceedsMaxLeverage();
@@ -209,12 +205,12 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         );
         uint256 scaledFee = _convertDecimals(
             BASE_DECIMALS,
-            ERC20(collateralToken).decimals(),
+            collateralToken.decimals(),
             liquidationFee
         );
         userPosition[user] = position;
         // Transfer liquidation fee to liquidator
-        ERC20(collateralToken).safeTransfer(msg.sender, scaledFee);
+        collateralToken.safeTransfer(msg.sender, scaledFee);
 
         emit PositionLiquidated(user);
     }

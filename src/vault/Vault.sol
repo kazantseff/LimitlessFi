@@ -97,9 +97,16 @@ contract LimitlessVault is ERC4626, Ownable {
     function depositProfitOrFees(uint256 amount) external {
         require(msg.sender == address(market), "Caller is not a market");
         totalUnderlyingDeposited += amount;
-        ERC20(asset).safeTransferFrom(address(market), address(this), amount);
+        asset.safeTransferFrom(address(market), address(this), amount);
 
         emit DepositedFromMarket(amount);
+    }
+
+    /** @notice Withdraw additional liquidity to market */
+    function withdrawToMarket(uint256 amount) external {
+        require(msg.sender == address(market), "Caller is not a market");
+        totalUnderlyingDeposited -= amount;
+        asset.safeTransfer(address(market), amount);
     }
 
     /** @dev Utilization percentage is denominated in BPS */
