@@ -219,12 +219,16 @@ contract MarketTest is Test {
         // 4000 USDC in ETH
         market.openPosition(2e18, 1000e6, true);
         (uint256 collateral, , , , ) = market.userPosition(trader);
+        uint256 vaultAsset = vault.totalUnderlyingDeposited();
         // 3800 USDC in ETH, profit = -200 USDC
         priceOracle.updateAnswer(1900e6);
         // Should take 100 USDC from collateral
         market.decreasePosition(1e18, 0);
         (uint256 newCollateral, , , , ) = market.userPosition(trader);
+        uint256 newVaultAsset = vault.totalUnderlyingDeposited();
         assertEq(newCollateral, collateral - 100e18);
+        // Check that realized negative pnl was sent to vault
+        assertEq(newVaultAsset, vaultAsset + 100e6);
     }
 
     function testDecreasePositionDecreasesSizeAndOpenInterest()
@@ -317,15 +321,15 @@ contract MarketTest is Test {
         vm.prank(trader);
         market.openPosition(10e18, 5000e6, true);
         (uint256 collateral, , , , ) = market.userPosition(trader);
-        uint256 fees = vault.borrowingFees();
+        uint256 vaultAssets = vault.totalUnderlyingDeposited();
 
         skip(31_536_000);
         vm.prank(trader);
         market.increasePosition(1e18, 0);
         (uint256 newCollateral, , , , ) = market.userPosition(trader);
-        uint256 newFees = vault.borrowingFees();
+        uint256 newVaultAssets = vault.totalUnderlyingDeposited();
         // There is some precisions loss happening, but overall this is almost 10% over the course of the year, which is correct
         assertEq(newCollateral, collateral - 1999999999762560000000);
-        assertEq(newFees, fees + 1999999999);
+        assertEq(newVaultAssets, vaultAssets + 1999999999);
     }
 }

@@ -34,6 +34,7 @@ contract LimitlessMarket is Ownable, MarketStorage, MarketUtils {
         collateralToken = _collateralToken;
         oracle = EthUsdOracle(_oracle);
         vault = LimitlessVault(_vault);
+        ERC20(collateralToken).approve(address(vault), type(uint256).max);
     }
 
     /** @notice Opens a position for msg.sender

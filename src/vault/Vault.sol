@@ -25,7 +25,6 @@ contract LimitlessVault is ERC4626, Ownable {
     uint256 public maxUtilizationPercentage;
     uint256 public totalUnderlyingDeposited;
     uint256 public totalShares;
-    uint256 public borrowingFees;
 
     struct userPosition {
         uint256 userShares;
@@ -36,6 +35,7 @@ contract LimitlessVault is ERC4626, Ownable {
 
     event UtilizationPercentageSet(uint256 indexed utilizationPercentage);
     event MarketSet(address indexed market);
+    event DepositedFromMarket(uint256 indexed amount);
     event BorrowingFeesDeposited(uint256 indexed amount);
     event BorrowingFeesAccrued(address indexed user, uint256 indexed amount);
     event BorrowingFeesClaimed(address indexed user, uint256 indexed amount);
@@ -64,11 +64,6 @@ contract LimitlessVault is ERC4626, Ownable {
         uint256 assets,
         address receiver
     ) public override returns (uint256 shares) {
-        // Only accrueFees if user already has a position
-        if (userToPosition[receiver].userShares > 0) {
-            accrueFees(receiver);
-        }
-
         shares = super.deposit(assets, receiver);
         totalUnderlyingDeposited += assets;
         userToPosition[receiver].userShares += shares;
@@ -86,8 +81,6 @@ contract LimitlessVault is ERC4626, Ownable {
         address receiver,
         address owner
     ) public override returns (uint256 assets) {
-        accrueFees(owner);
-
         assets = super.redeem(shares, receiver, owner);
         totalUnderlyingDeposited -= assets;
         userToPosition[owner].userShares -= shares;
@@ -100,49 +93,13 @@ contract LimitlessVault is ERC4626, Ownable {
         );
     }
 
-    /** @notice Accepts borrowing fees from market */
-    function depositBorrowingFees(uint256 amount) external {
+    /** @notice Accepts profit and fees from market */
+    function depositProfitOrFees(uint256 amount) external {
         require(msg.sender == address(market), "Caller is not a market");
-        borrowingFees += amount;
+        totalUnderlyingDeposited += amount;
         ERC20(asset).safeTransferFrom(address(market), address(this), amount);
 
-        emit BorrowingFeesDeposited(amount);
-    }
-
-    /** @notice Accrues fees to a user
-     * @notice Calculates the amount to accrue based on time spent in market and the pro rata share of the pool
-     */
-    // #TODO: Doee not work correctly, requires fix
-    // @audit Maybe use some dividendPerShare variable
-    function accrueFees(address user) public {
-        userPosition memory position = userToPosition[user];
-        uint256 deltaTime = block.timestamp - position.lastAccruedTimestamp;
-        uint256 userShare = (position.userShares * SCALE_FACTOR) / totalShares;
-        if (deltaTime > 0) {
-            if (borrowingFees > 0) {
-                uint256 accruedSinceUpdate = (deltaTime *
-                    getDistributionSpeed() *
-                    userShare) / SCALE_FACTOR;
-                borrowingFees -= accruedSinceUpdate;
-                position.userFeesToClaim += accruedSinceUpdate;
-
-                emit BorrowingFeesAccrued(user, accruedSinceUpdate);
-            }
-            position.lastAccruedTimestamp = block.timestamp;
-            userToPosition[user] = position;
-        }
-    }
-
-    /** @notice Function to claim fees */
-    function claimBorrowingFees() external {
-        userPosition memory position = userToPosition[msg.sender];
-        uint256 claimAmount = position.userFeesToClaim;
-        require(claimAmount > 0, "Nothing to claim.");
-        ERC20(asset).safeTransfer(msg.sender, claimAmount);
-        position.userFeesToClaim = 0;
-        userToPosition[msg.sender] = position;
-
-        emit BorrowingFeesClaimed(msg.sender, claimAmount);
+        emit DepositedFromMarket(amount);
     }
 
     /** @dev Utilization percentage is denominated in BPS */
@@ -158,10 +115,5 @@ contract LimitlessVault is ERC4626, Ownable {
         market = LimitlessMarket(_market);
 
         emit MarketSet(_market);
-    }
-
-    function getDistributionSpeed() internal view returns (uint256) {
-        // Distrubute tokens on an hourly basis
-        return borrowingFees / 3600;
     }
 }

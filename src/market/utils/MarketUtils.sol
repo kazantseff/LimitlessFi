@@ -162,18 +162,24 @@ contract MarketUtils is MarketStorage {
         int256 realizedPnl = (pnl * removeSize.toInt256()) /
             _position.size.toInt256();
         // If realizedPnl is negative, deduct it from the collateral
-        // @audit-issue When realizing PNL it should go to LP's?
-        // @audit-issue It's definetely should be accounted for somehow, rn it's unaccounted for
         if (realizedPnl < 0) {
             // Collateral is in 8 decimals of precisions
             uint256 absolutePnl = realizedPnl.abs();
             // No need to check leverage as the amount of collateral decreased is proportional to amount of size decreased
             _position.collateral -= absolutePnl;
+            // Transfer profit to the vault
+            vault.depositProfitOrFees(
+                _convertDecimals(
+                    BASE_DECIMALS,
+                    ERC20(collateralToken).decimals(),
+                    absolutePnl
+                )
+            );
         } else {
             // @audit-issue Here also, the transfer should be from Vault, as it's where the LP's money are sitting
             // @audit Maybe it's fine, just add a check if there is not enough tokens in market, request additional tokens from vault
             uint256 scaledPnl = _convertDecimals(
-                18,
+                BASE_DECIMALS,
                 ERC20(collateralToken).decimals(),
                 realizedPnl.toUint256()
             );
@@ -199,7 +205,7 @@ contract MarketUtils is MarketStorage {
                 _position.collateral -= fee;
             }
             uint256 scaledCollateral = _convertDecimals(
-                18,
+                BASE_DECIMALS,
                 ERC20(collateralToken).decimals(),
                 _position.collateral
             );
@@ -254,7 +260,7 @@ contract MarketUtils is MarketStorage {
         uint256 borrowingFeesInCollateral = (borrowingFee * price) /
             SCALE_FACTOR;
         uint256 borrowingFeesScaled = _convertDecimals(
-            18,
+            BASE_DECIMALS,
             ERC20(collateralToken).decimals(),
             borrowingFeesInCollateral
         );
@@ -262,8 +268,7 @@ contract MarketUtils is MarketStorage {
         _position.lastTimestampAccrued = block.timestamp;
         _position.collateral -= borrowingFeesInCollateral;
 
-        ERC20(collateralToken).approve(address(vault), borrowingFeesScaled);
-        vault.depositBorrowingFees(borrowingFeesScaled);
+        vault.depositProfitOrFees(borrowingFeesScaled);
         return _position;
     }
 
@@ -284,7 +289,7 @@ contract MarketUtils is MarketStorage {
             vault.maxUtilizationPercentage()) / MAXIMUM_BPS;
         uint256 scaledReserves = _convertDecimals(
             ERC20(collateralToken).decimals(),
-            18,
+            BASE_DECIMALS,
             reserves
         );
         return scaledReserves;
