@@ -42,11 +42,11 @@ contract MarketUtils is MarketStorage {
         } else {
             return false;
         }
-        /** @notice Calculates total PnL of all traders
-         * @return PnL Positive if traders are making money or negative if traders are losing money
-         */
     }
 
+    /** @notice Calculates total PnL of all traders
+     * @return PnL Positive if traders are making money or negative if traders are losing money
+     */
     function _calculateTradersPnl() external view returns (int256) {
         int256 price = oracle.getPrice();
         int256 pnlLongs = ((price * openInterstInUnderlyingLong.toInt256()) /
