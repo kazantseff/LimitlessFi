@@ -37,11 +37,7 @@ contract MarketUtils is MarketStorage {
      * @return True if it does not exceeds reserves, false otherwise
      */
     function _ensureLiquidityReserves() public view returns (bool) {
-        if (_totalOpenInterest() < _calculateLiquidityReserves()) {
-            return true;
-        } else {
-            return false;
-        }
+        return _totalOpenInterest() < _calculateLiquidityReserves();
     }
 
     /** @notice Calculates total PnL of all traders
